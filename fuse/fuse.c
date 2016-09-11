@@ -30,6 +30,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <signal.h>
+#include <dlfcn.h>
 #include <assert.h>
 #include <poll.h>
 #include <sys/param.h>
@@ -37,10 +38,6 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <sys/file.h>
-
-#ifdef USE_MODULES
-#include <dlfcn.h>
-#endif
 
 #define FUSE_NODE_SLAB 1
 
@@ -225,8 +222,6 @@ struct fuse_context_i {
 static pthread_key_t fuse_context_key;
 static pthread_mutex_t fuse_context_lock = PTHREAD_MUTEX_INITIALIZER;
 static int fuse_context_ref;
-
-#ifdef USE_MODULES
 static struct fusemod_so *fuse_current_so;
 static struct fuse_module *fuse_modules;
 
@@ -325,7 +320,6 @@ static void fuse_put_module(struct fuse_module *m)
 	}
 	pthread_mutex_unlock(&fuse_context_lock);
 }
-#endif
 
 static void init_list_head(struct list_head *list)
 {
@@ -2618,10 +2612,8 @@ void fuse_fs_destroy(struct fuse_fs *fs)
 	fuse_get_context()->private_data = fs->user_data;
 	if (fs->op.destroy)
 		fs->op.destroy(fs->user_data);
-#ifdef USE_MODULES
 	if (fs->m)
 		fuse_put_module(fs->m);
-#endif
 	free(fs);
 }
 
@@ -4441,7 +4433,6 @@ static void fuse_lib_help(void)
 "\n", FUSE_DEFAULT_INTR_SIGNAL);
 }
 
-#ifdef USE_MODULES
 static void fuse_lib_help_modules(void)
 {
 	struct fuse_module *m;
@@ -4461,7 +4452,6 @@ static void fuse_lib_help_modules(void)
 	}
 	pthread_mutex_unlock(&fuse_context_lock);
 }
-#endif
 
 static int fuse_lib_opt_proc(void *data, const char *arg, int key,
 			     struct fuse_args *outargs)
@@ -4517,7 +4507,7 @@ static void fuse_restore_intr_signal(int signum)
 	sigaction(signum, &sa, NULL);
 }
 
-#ifdef USE_MODULES
+
 static int fuse_push_module(struct fuse *f, const char *module,
 			    struct fuse_args *args)
 {
@@ -4540,7 +4530,6 @@ static int fuse_push_module(struct fuse *f, const char *module,
 	f->utime_omit_ok = newfs->op.flag_utime_omit_ok && f->utime_omit_ok;
 	return 0;
 }
-#endif
 
 struct fuse_fs *fuse_fs_new(const struct fuse_operations *op, size_t op_size,
 			    void *user_data)
@@ -4679,7 +4668,6 @@ struct fuse *fuse_new_common(struct fuse_chan *ch, struct fuse_args *args,
 			   fuse_lib_opt_proc) == -1)
 		goto out_free_fs;
 
-#ifdef USE_MODULES
 	if (f->conf.modules) {
 		char *module;
 		char *next;
@@ -4694,7 +4682,6 @@ struct fuse *fuse_new_common(struct fuse_chan *ch, struct fuse_args *args,
 				goto out_free_fs;
 		}
 	}
-#endif
 
 	if (!f->conf.ac_attr_timeout_set)
 		f->conf.ac_attr_timeout = f->conf.attr_timeout;
@@ -4714,10 +4701,8 @@ struct fuse *fuse_new_common(struct fuse_chan *ch, struct fuse_args *args,
 
 	f->se = fuse_lowlevel_new_common(args, &llop, sizeof(llop), f);
 	if (f->se == NULL) {
-#ifdef USE_MODULES
 		if (f->conf.help)
 			fuse_lib_help_modules();
-#endif
 		goto out_free_fs;
 	}
 
@@ -4858,7 +4843,6 @@ static struct fuse *fuse_new_common_compat25(int fd, struct fuse_args *args,
 	return f;
 }
 
-#ifdef USE_MODULES
 /* called with fuse_context_lock held or during initialization (before
    main() has been called) */
 void fuse_register_module(struct fuse_module *mod)
@@ -4870,7 +4854,6 @@ void fuse_register_module(struct fuse_module *mod)
 	mod->next = fuse_modules;
 	fuse_modules = mod;
 }
-#endif
 
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
 
@@ -4922,11 +4905,11 @@ struct fuse *fuse_new_compat1(int fd, int flags,
 				      11);
 }
 
-FUSE_SYMVER(".symver fuse_exited,__fuse_exited@FUSE_UNVERSIONED");
-FUSE_SYMVER(".symver fuse_process_cmd,__fuse_process_cmd@FUSE_UNVERSIONED");
-FUSE_SYMVER(".symver fuse_read_cmd,__fuse_read_cmd@FUSE_UNVERSIONED");
-FUSE_SYMVER(".symver fuse_set_getcontext_func,__fuse_set_getcontext_func@FUSE_UNVERSIONED");
-FUSE_SYMVER(".symver fuse_new_compat2,fuse_new@FUSE_UNVERSIONED");
+FUSE_SYMVER(".symver fuse_exited,__fuse_exited@");
+FUSE_SYMVER(".symver fuse_process_cmd,__fuse_process_cmd@");
+FUSE_SYMVER(".symver fuse_read_cmd,__fuse_read_cmd@");
+FUSE_SYMVER(".symver fuse_set_getcontext_func,__fuse_set_getcontext_func@");
+FUSE_SYMVER(".symver fuse_new_compat2,fuse_new@");
 FUSE_SYMVER(".symver fuse_new_compat22,fuse_new@FUSE_2.2");
 
 #endif /* __FreeBSD__ || __NetBSD__  */

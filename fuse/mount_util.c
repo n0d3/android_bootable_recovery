@@ -30,7 +30,6 @@
 
 #ifdef __NetBSD__
 #define umount2(mnt, flags) unmount(mnt, (flags == 2) ? MNT_FORCE : 0)
-#define mtab_needs_update(mnt) 0
 #elif defined(__ANDROID__)
 #define mtab_needs_update(mnt) 0
 #else

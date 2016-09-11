@@ -181,6 +181,13 @@ int fuse_daemonize(int foreground)
 {
 	if (!foreground) {
 		int nullfd;
+		int waiter[2];
+		char completed;
+
+		if (pipe(waiter)) {
+			perror("fuse_daemonize: pipe");
+			return -1;
+		}
 
 		/*
 		 * demonize current process by forking it and killing the
@@ -193,6 +200,7 @@ int fuse_daemonize(int foreground)
 		case 0:
 			break;
 		default:
+			read(waiter[0], &completed, sizeof(completed));
 			_exit(0);
 		}
 
@@ -211,6 +219,12 @@ int fuse_daemonize(int foreground)
 			if (nullfd > 2)
 				close(nullfd);
 		}
+
+		/* Propagate completion of daemon initializatation */
+		completed = 1;
+		write(waiter[1], &completed, sizeof(completed));
+		close(waiter[0]);
+		close(waiter[1]);
 	}
 	return 0;
 }
@@ -436,10 +450,10 @@ int fuse_mount_compat1(const char *mountpoint, const char *args[])
 	return fuse_mount_compat22(mountpoint, NULL);
 }
 
-FUSE_SYMVER(".symver fuse_setup_compat2,__fuse_setup@FUSE_UNVERSIONED");
+FUSE_SYMVER(".symver fuse_setup_compat2,__fuse_setup@");
 FUSE_SYMVER(".symver fuse_setup_compat22,fuse_setup@FUSE_2.2");
-FUSE_SYMVER(".symver fuse_teardown,__fuse_teardown@FUSE_UNVERSIONED");
-FUSE_SYMVER(".symver fuse_main_compat2,fuse_main@FUSE_UNVERSIONED");
+FUSE_SYMVER(".symver fuse_teardown,__fuse_teardown@");
+FUSE_SYMVER(".symver fuse_main_compat2,fuse_main@");
 FUSE_SYMVER(".symver fuse_main_real_compat22,fuse_main_real@FUSE_2.2");
 
 #endif /* __FreeBSD__ || __NetBSD__ */
