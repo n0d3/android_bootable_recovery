@@ -198,6 +198,8 @@ GUIAction::GUIAction(xml_node<>* node)
 		ADD_ACTION(checkpartitionlifetimewrites);
 		ADD_ACTION(mountsystemtoggle);
 		ADD_ACTION(setlanguage);
+		ADD_ACTION(getfoldersize);
+		ADD_ACTION(getfilesize);
 
 		// remember actions that run in the caller thread
 		for (mapFunc::const_iterator it = mf.begin(); it != mf.end(); ++it)
@@ -1233,6 +1235,20 @@ int GUIAction::cancelbackup(std::string arg __unused) {
 			op_status = 1; // failure
 	}
 
+	return 0;
+}
+
+int GUIAction::getfoldersize(std::string arg)
+{
+	float Size = ((float)du.Get_Folder_Size(arg) / (float)1048576LLU);
+	DataManager::SetValue("tw_filename1_size", Size);
+	return 0;
+}
+
+int GUIAction::getfilesize(std::string arg)
+{
+	float Size = ((float)TWFunc::Get_File_Size(arg) / (float)1048576LLU);
+	DataManager::SetValue("tw_filename1_size", Size);
 	return 0;
 }
 
