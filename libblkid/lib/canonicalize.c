@@ -33,7 +33,7 @@ char *canonicalize_dm_name(const char *ptname)
 		return NULL;
 
 	snprintf(path, sizeof(path), "/sys/block/%s/dm/name", ptname);
-	if (!(f = fopen(path, "r")))
+	if (!(f = fopen(path, "r" UL_CLOEXECSTR)))
 		return NULL;
 
 	/* read "<name>\n" from sysfs */

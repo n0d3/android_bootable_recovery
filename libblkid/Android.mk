@@ -5,14 +5,13 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libutil-linux
 LOCAL_MODULE_TAGS := optional
 #LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
-LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC
-LOCAL_SRC_FILES = 	lib/at.c \
-			lib/blkdev.c \
+LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC -DHAVE_USLEEP -DHAVE_OPENAT
+LOCAL_SRC_FILES = 	lib/blkdev.c \
 			lib/canonicalize.c \
-			lib/colors.c \
+			lib/color-names.c \
 			lib/crc32.c \
-			lib/crc64.c \
 			lib/env.c \
+			lib/idcache.c \
 			lib/exec_shell.c \
 			lib/fileutils.c \
 			lib/ismounted.c \
@@ -29,7 +28,9 @@ LOCAL_SRC_FILES = 	lib/at.c \
 			lib/randutils.c \
 			lib/setproctitle.c \
 			lib/strutils.c \
-			lib/sysfs.c \
+			lib/timeutils.c \
+			lib/strv.c \
+			lib/sysfs.c
 
 LOCAL_C_INCLUDES += \
 			$(LOCAL_PATH)/include \
@@ -43,18 +44,19 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libuuid
 LOCAL_MODULE_TAGS := optional
 #LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
-LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC
+LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC 
 LOCAL_SRC_FILES =	libuuid/src/clear.c \
+			libuuid/src/compare.c \
 			libuuid/src/copy.c \
+			libuuid/src/gen_uuid.c \
 			libuuid/src/isnull.c \
+			libuuid/src/pack.c \
 			libuuid/src/parse.c \
 			libuuid/src/unpack.c \
+			libuuid/src/unparse.c \
 			libuuid/src/uuid_time.c \
-			libuuid/src/compare.c \
-			libuuid/src/gen_uuid.c \
-			libuuid/src/pack.c \
 			libuuid/src/test_uuid.c \
-			libuuid/src/unparse.c
+			lib/randutils.c
 
 LOCAL_C_INCLUDES += 	$(LOCAL_PATH)/libuuid/src \
 			$(LOCAL_PATH)/include \
@@ -86,7 +88,8 @@ LOCAL_SRC_FILES = 	libfdisk/src/alignment.c \
 			libfdisk/src/gpt.c \
 			libfdisk/src/label.c \
 			libfdisk/src/script.c \
-			libfdisk/src/table.c
+			libfdisk/src/table.c \
+			libfdisk/src/version.c
 
 LOCAL_C_INCLUDES += 	$(LOCAL_PATH)/libfdisk/src \
 			$(LOCAL_PATH)/include \
@@ -101,7 +104,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libblkid
 LOCAL_MODULE_TAGS := optional
 #LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
-LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC
+LOCAL_CFLAGS = -D_FILE_OFFSET_BITS=64 -DHAVE_LOFF_T -DHAVE_ERR_H -DHAVE_MEMPCPY -DHAVE_FSYNC -DHAVE_USLEEP -Wno-pointer-bool-conversion
 LOCAL_SRC_FILES = 	src/cache.c \
 			src/config.c \
 			src/dev.c \
@@ -140,6 +143,7 @@ LOCAL_SRC_FILES = 	src/cache.c \
 			src/superblocks/ddf_raid.c \
 			src/superblocks/drbd.c \
 			src/superblocks/drbdproxy_datalog.c \
+			src/superblocks/drbdmanage.c \
 			src/superblocks/exfat.c \
 			src/superblocks/ext.c \
 			src/superblocks/f2fs.c \

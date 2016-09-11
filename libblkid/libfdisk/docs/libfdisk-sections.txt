@@ -4,6 +4,17 @@ fdisk_init_debug
 </SECTION>
 
 <SECTION>
+<FILE>version-utils</FILE>
+LIBFDISK_MAJOR_VERSION
+LIBFDISK_MINOR_VERSION
+LIBFDISK_PATCH_VERSION
+fdisk_parse_version_string
+fdisk_get_library_version
+fdisk_get_library_features
+LIBFDISK_VERSION
+</SECTION>
+
+<SECTION>
 <FILE>ask</FILE>
 fdisk_info
 fdisk_warn
@@ -11,6 +22,7 @@ fdisk_warnx
 fdisk_set_ask
 <SUBSECTION>
 fdisk_ask
+fdisk_is_ask
 fdisk_ask_get_query
 fdisk_ask_get_type
 fdisk_ask_menu_get_default
@@ -38,12 +50,17 @@ fdisk_ask_string_set_result
 fdisk_ask_yesno
 fdisk_ask_yesno_get_result
 fdisk_ask_yesno_set_result
+fdisk_asktype
 fdisk_ref_ask
 fdisk_unref_ask
 </SECTION>
 
 <SECTION>
 <FILE>alignment</FILE>
+FDISK_ALIGN_DOWN
+FDISK_ALIGN_NEAREST
+FDISK_ALIGN_UP
+fdisk_sector_t
 fdisk_align_lba
 fdisk_align_lba_in_range
 fdisk_has_user_device_properties
@@ -79,11 +96,14 @@ fdisk_field_get_id
 fdisk_field_get_name
 fdisk_field_get_width
 fdisk_field_is_number
+fdisk_fieldtype
 <SUBSECTION>
 fdisk_label
+fdisk_is_label
 fdisk_label_get_field
 fdisk_label_get_field_by_name
 fdisk_label_get_fields_ids
+fdisk_label_get_fields_ids_all
 fdisk_label_get_name
 fdisk_label_get_nparttypes
 fdisk_label_get_parttype
@@ -97,6 +117,7 @@ fdisk_label_parse_parttype
 fdisk_label_require_geometry
 fdisk_label_set_changed
 fdisk_label_set_disabled
+fdisk_labeltype
 </SECTION>
 
 <SECTION>
@@ -111,6 +132,7 @@ fdisk_script
 fdisk_new_script
 fdisk_new_script_from_file
 fdisk_ref_script
+fdisk_script_enable_json
 fdisk_script_get_header
 fdisk_script_get_nlines
 fdisk_script_get_table
@@ -118,7 +140,10 @@ fdisk_script_read_context
 fdisk_script_read_file
 fdisk_script_read_line
 fdisk_script_set_header
+fdisk_script_set_fgets
 fdisk_script_write_file
+fdisk_script_set_userdata
+fdisk_script_get_userdata
 fdisk_unref_script
 </SECTION>
 
@@ -162,6 +187,7 @@ fdisk_partition_is_container
 fdisk_partition_is_freespace
 fdisk_partition_is_nested
 fdisk_partition_is_used
+fdisk_partition_is_wholedisk
 fdisk_partition_next_partno
 fdisk_partition_partno_follow_default
 fdisk_partition_set_attrs
@@ -185,6 +211,7 @@ fdisk_unref_partition
 
 <SECTION>
 <FILE>dos</FILE>
+DOS_FLAG_ACTIVE
 fdisk_dos_enable_compatible
 fdisk_dos_is_compatible
 fdisk_dos_move_begin
@@ -192,6 +219,8 @@ fdisk_dos_move_begin
 
 <SECTION>
 <FILE>sgi</FILE>
+SGI_FLAG_BOOT
+SGI_FLAG_SWAP
 fdisk_sgi_create_info
 fdisk_sgi_set_bootfile
 </SECTION>
@@ -199,6 +228,12 @@ fdisk_sgi_set_bootfile
 <SECTION>
 <FILE>gpt</FILE>
 fdisk_gpt_is_hybrid
+fdisk_gpt_get_partition_attrs
+fdisk_gpt_set_partition_attrs
+GPT_FLAG_REQUIRED
+GPT_FLAG_NOBLOCK
+GPT_FLAG_LEGACYBOOT
+GPT_FLAG_GUIDSPECIFIC
 </SECTION>
 
 <SECTION>
@@ -240,6 +275,7 @@ fdisk_reset_table
 fdisk_table_add_partition
 fdisk_table_get_nents
 fdisk_table_get_partition
+fdisk_table_get_partition_by_partno
 fdisk_table_is_empty
 fdisk_table_next_partition
 fdisk_table_remove_partition
@@ -254,9 +290,12 @@ fdisk_unref_table
 fdisk_context
 fdisk_assign_device
 fdisk_deassign_device
+fdisk_enable_bootbits_protection
 fdisk_enable_details
 fdisk_enable_listonly
+fdisk_enable_wipe
 fdisk_get_alignment_offset
+fdisk_get_collision
 fdisk_get_devfd
 fdisk_get_devname
 fdisk_get_first_lba
@@ -271,20 +310,25 @@ fdisk_get_optimal_iosize
 fdisk_get_parent
 fdisk_get_physector_size
 fdisk_get_sector_size
+fdisk_get_size_unit
 fdisk_get_unit
 fdisk_get_units_per_sector
 fdisk_has_label
-fdisk_has_user_device_properties
+fdisk_has_protected_bootbits
+fdisk_has_wipe
 fdisk_is_details
 fdisk_is_labeltype
 fdisk_is_listonly
 fdisk_is_readonly
 fdisk_new_context
 fdisk_new_nested_context
+FDISK_PLURAL
 fdisk_ref_context
 fdisk_set_first_lba
 fdisk_set_last_lba
+fdisk_set_size_unit
 fdisk_set_unit
+FDISK_SINGULAR
 fdisk_unref_context
 fdisk_use_cylinders
 </SECTION>
@@ -296,6 +340,7 @@ fdisk_partname
 
 <SECTION>
 <FILE>iter</FILE>
+fdisk_iter
 fdisk_free_iter
 fdisk_iter_get_direction
 fdisk_new_iter

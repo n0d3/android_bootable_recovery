@@ -9,7 +9,7 @@
     <title>libfdisk Reference Manual</title>
     <releaseinfo>for libfdisk version &version;</releaseinfo>
     <copyright>
-      <year>2014</year>
+      <year>2014-2015</year>
       <holder>Karel Zak &lt;kzak@redhat.com&gt;</holder>
     </copyright>
   </bookinfo>
@@ -54,8 +54,10 @@ available from ftp://ftp.kernel.org/pub/linux/utils/util-linux/.
     <xi:include href="xml/iter.xml"/>
     <xi:include href="xml/utils.xml"/>
     <xi:include href="xml/init.xml"/>
+    <xi:include href="xml/version-utils.xml"/>
+
   </part>
-  <index id="api-index-full">
+  <index id="api-index">
     <title>API Index</title>
     <xi:include href="xml/api-index-full.xml"><xi:fallback /></xi:include>
   </index>

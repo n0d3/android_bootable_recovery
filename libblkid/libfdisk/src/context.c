@@ -94,12 +94,13 @@ static int init_nested_from_parent(struct fdisk_context *cxt, int isnew)
 	cxt->user_log_sector =	parent->user_log_sector;
 	cxt->user_pyh_sector =  parent->user_pyh_sector;
 
-	/* parent <--> nested independent setting, initialize for new nested 
+	/* parent <--> nested independent setting, initialize for new nested
 	 * contexts only */
 	if (isnew) {
 		cxt->listonly =	parent->listonly;
 		cxt->display_details =	parent->display_details;
 		cxt->display_in_cyl_units = parent->display_in_cyl_units;
+		cxt->protect_bootbits = parent->protect_bootbits;
 	}
 
 	free(cxt->dev_path);
@@ -143,19 +144,22 @@ struct fdisk_context *fdisk_new_nested_context(struct fdisk_context *parent,
 	if (!cxt)
 		return NULL;
 
-	DBG(CXT, ul_debugobj(parent, "alloc nested [%p]", cxt));
+	DBG(CXT, ul_debugobj(parent, "alloc nested [%p] [name=%s]", cxt, name));
 	cxt->refcount = 1;
 
 	fdisk_ref_context(parent);
 	cxt->parent = parent;
 
-	if (init_nested_from_parent(cxt, 1) != 0)
+	if (init_nested_from_parent(cxt, 1) != 0) {
+		cxt->parent = NULL;
+		fdisk_unref_context(cxt);
 		return NULL;
+	}
 
 	if (name) {
-		if (strcmp(name, "bsd") == 0)
+		if (strcasecmp(name, "bsd") == 0)
 			lb = cxt->labels[ cxt->nlabels++ ] = fdisk_new_bsd_label(cxt);
-		else if (strcmp(name, "dos") == 0)
+		else if (strcasecmp(name, "dos") == 0 || strcasecmp(name, "mbr") == 0)
 			lb = cxt->labels[ cxt->nlabels++ ] = fdisk_new_dos_label(cxt);
 	}
 
@@ -211,10 +215,12 @@ struct fdisk_label *fdisk_get_label(struct fdisk_context *cxt, const char *name)
 
 	if (!name)
 		return cxt->label;
+	else if (strcasecmp(name, "mbr") == 0)
+		name = "dos";
 
 	for (i = 0; i < cxt->nlabels; i++)
 		if (cxt->labels[i]
-		    && strcmp(cxt->labels[i]->name, name) == 0)
+		    && strcasecmp(cxt->labels[i]->name, name) == 0)
 			return cxt->labels[i];
 
 	DBG(CXT, ul_debugobj(cxt, "failed to found %s label driver", name));
@@ -299,6 +305,80 @@ int fdisk_has_label(struct fdisk_context *cxt)
 }
 
 /**
+ * fdisk_has_protected_bootbits:
+ * @cxt: fdisk context
+ *
+ * Returns: return 1 if boot bits protection enabled.
+ */
+int fdisk_has_protected_bootbits(struct fdisk_context *cxt)
+{
+	return cxt && cxt->protect_bootbits;
+}
+
+/**
+ * fdisk_enable_bootbits_protection:
+ * @cxt: fdisk context
+ * @enable: 1 or 0
+ *
+ * The library zeroizes all the first sector when create a new disk label by
+ * default.  This function allows to control this behavior. For now it's
+ * supported for MBR and GPT.
+ *
+ * Returns: 0 on success, < 0 on error.
+ */
+int fdisk_enable_bootbits_protection(struct fdisk_context *cxt, int enable)
+{
+	if (!cxt)
+		return -EINVAL;
+	cxt->protect_bootbits = enable ? 1 : 0;
+	return 0;
+}
+
+/**
+ * fdisk_enable_wipe
+ * @cxt: fdisk context
+ * @enable: 1 or 0
+ *
+ * The library removes all filesystem/RAID signatures before write PT. This is
+ * no-op if any collision has not been detected by fdisk_assign_device(). See
+ * fdisk_has_collision(). The default is not wipe a device.
+ *
+ * Returns: 0 on success, < 0 on error.
+ */
+int fdisk_enable_wipe(struct fdisk_context *cxt, int enable)
+{
+	if (!cxt)
+		return -EINVAL;
+	cxt->wipe_device = enable ? 1 : 0;
+	return 0;
+}
+
+/**
+ * fdisk_has_wipe
+ * @cxt: fdisk context
+ *
+ * Returns the current wipe setting. See fdisk_enable_wipe().
+ *
+ * Returns: 0 on success, < 0 on error.
+ */
+int fdisk_has_wipe(struct fdisk_context *cxt)
+{
+	return cxt && cxt->wipe_device;
+}
+
+
+/**
+ * fdisk_get_collision
+ * @cxt: fdisk context
+ *
+ * Returns: name of the filesystem or RAID detected on the device or NULL.
+ */
+const char *fdisk_get_collision(struct fdisk_context *cxt)
+{
+	return cxt->collision;
+}
+
+/**
  * fdisk_get_npartitions:
  * @cxt: context
  *
@@ -352,7 +432,7 @@ int fdisk_is_labeltype(struct fdisk_context *cxt, enum fdisk_labeltype id)
 {
 	assert(cxt);
 
-	return cxt->label && fdisk_label_get_type(cxt->label) == id;
+	return cxt->label && (unsigned)fdisk_label_get_type(cxt->label) == id;
 }
 
 /**
@@ -391,6 +471,9 @@ static void reset_context(struct fdisk_context *cxt)
 	free(cxt->dev_path);
 	cxt->dev_path = NULL;
 
+	free(cxt->collision);
+	cxt->collision = NULL;
+
 	cxt->dev_fd = -1;
 	cxt->firstsector = NULL;
 	cxt->firstsector_bufsz = 0;
@@ -409,18 +492,15 @@ static void reset_context(struct fdisk_context *cxt)
  *
  * Returns: 0 if nothing found, < 0 on error, 1 if found a signature
  */
-static int warn_wipe(struct fdisk_context *cxt)
+static int check_collisions(struct fdisk_context *cxt)
 {
 #ifdef HAVE_LIBBLKID
-	blkid_probe pr;
-#endif
 	int rc = 0;
+	blkid_probe pr;
 
 	assert(cxt);
+	assert(cxt->dev_fd >= 0);
 
-	if (fdisk_has_label(cxt) || cxt->dev_fd < 0)
-		return -EINVAL;
-#ifdef HAVE_LIBBLKID
 	DBG(CXT, ul_debugobj(cxt, "wipe check: initialize libblkid prober"));
 
 	pr = blkid_new_probe();
@@ -442,18 +522,48 @@ static int warn_wipe(struct fdisk_context *cxt)
 
 		if (blkid_probe_lookup_value(pr, "TYPE", &name, 0) == 0 ||
 		    blkid_probe_lookup_value(pr, "PTTYPE", &name, 0) == 0) {
-			fdisk_warnx(cxt, _(
-				"%s: device contains a valid '%s' signature; it is "
-				"strongly recommended to wipe the device with "
-				"wipefs(8) if this is unexpected, in order to "
-				"avoid possible collisions"), cxt->dev_path, name);
-			rc = 1;
+			cxt->collision = strdup(name);
+			if (!cxt->collision)
+				rc = -ENOMEM;
 		}
 	}
 
 	blkid_free_probe(pr);
-#endif
 	return rc;
+#else
+	return 0;
+#endif
+}
+
+int fdisk_wipe_collisions(struct fdisk_context *cxt)
+{
+#ifdef HAVE_LIBBLKID
+	blkid_probe pr;
+	int rc;
+
+	assert(cxt);
+	assert(cxt->dev_fd >= 0);
+
+	DBG(CXT, ul_debugobj(cxt, "wipe: initialize libblkid prober"));
+
+	pr = blkid_new_probe();
+	if (!pr)
+		return -ENOMEM;
+	rc = blkid_probe_set_device(pr, cxt->dev_fd, 0, 0);
+	if (rc)
+		return rc;
+
+	blkid_probe_enable_superblocks(pr, 1);
+	blkid_probe_set_superblocks_flags(pr, BLKID_SUBLKS_MAGIC);
+	blkid_probe_enable_partitions(pr, 1);
+	blkid_probe_set_partitions_flags(pr, BLKID_PARTS_MAGIC);
+
+	while (blkid_do_probe(pr) == 0)
+		blkid_do_wipe(pr, FALSE);
+
+	blkid_free_probe(pr);
+#endif
+	return 0;
 }
 
 /**
@@ -528,8 +638,8 @@ int fdisk_assign_device(struct fdisk_context *cxt,
 
 	/* warn about obsolete stuff on the device if we aren't in
 	 * list-only mode and there is not PT yet */
-	if (!fdisk_is_listonly(cxt) && !fdisk_has_label(cxt))
-		warn_wipe(cxt);
+	if (!fdisk_is_listonly(cxt) && !fdisk_has_label(cxt) && check_collisions(cxt) < 0)
+		goto fail;
 
 	DBG(CXT, ul_debugobj(cxt, "initialized for %s [%s]",
 			      fname, readonly ? "READ-ONLY" : "READ-WRITE"));
@@ -605,7 +715,7 @@ int fdisk_is_readonly(struct fdisk_context *cxt)
  */
 void fdisk_unref_context(struct fdisk_context *cxt)
 {
-	int i;
+	unsigned i;
 
 	if (!cxt)
 		return;
@@ -908,7 +1018,7 @@ fdisk_sector_t fdisk_get_last_lba(struct fdisk_context *cxt)
  * fdisk_reset_alignment().
  *
  * The default is number of sectors on the device, but maybe modified by the
- * current disklabel driver (for example GPT uses and of disk for backup
+ * current disklabel driver (for example GPT uses the end of disk for backup
  * header, so last_lba is smaller than total number of sectors).
  *
  * Returns: 0 on success, <0 on error.
@@ -917,12 +1027,41 @@ fdisk_sector_t fdisk_set_last_lba(struct fdisk_context *cxt, fdisk_sector_t lba)
 {
 	assert(cxt);
 
-	if (lba > cxt->total_sectors - 1 && lba < 1)
+	if (lba > cxt->total_sectors - 1 || lba < 1)
 		return -ERANGE;
 	cxt->last_lba = lba;
 	return 0;
 }
 
+/**
+ * fdisk_set_size_unit:
+ * @cxt: fdisk context
+ * @unit: FDISK_SIZEUNIT_*
+ *
+ * Sets unit for SIZE output field (see fdisk_partition_to_string()).
+ *
+ * Returns: 0 on success, <0 on error.
+ */
+int fdisk_set_size_unit(struct fdisk_context *cxt, int unit)
+{
+	assert(cxt);
+	cxt->sizeunit = unit;
+	return 0;
+}
+
+/**
+ * fdisk_get_size_unit:
+ * @cxt: fdisk context
+ *
+ * Gets unit for SIZE output field (see fdisk_partition_to_string()).
+ *
+ * Returns: unit
+ */
+int fdisk_get_size_unit(struct fdisk_context *cxt)
+{
+	assert(cxt);
+	return cxt->sizeunit;
+}
 
 /**
  * fdisk_get_nsectors:
@@ -999,8 +1138,6 @@ fdisk_sector_t fdisk_get_geom_cylinders(struct fdisk_context *cxt)
 int fdisk_missing_geometry(struct fdisk_context *cxt)
 {
 	int rc;
-
-	assert(cxt);
 
 	if (!cxt || !cxt->label)
 		return 0;

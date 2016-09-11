@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 #include "c.h"
 #include "libfdisk.h"
 
@@ -26,13 +25,6 @@
 #include "debug.h"
 #include <stdio.h>
 #include <stdarg.h>
-
-/* features */
-#define CONFIG_LIBFDISK_ASSERT
-
-#ifdef CONFIG_LIBFDISK_ASSERT
-#include <assert.h>
-#endif
 
 /*
  * Debug
@@ -121,6 +113,9 @@ struct fdisk_partition {
 	fdisk_sector_t	start;			/* first sectors */
 	fdisk_sector_t	size;			/* size in sectors */
 
+	int		movestart;		/* FDISK_MOVE_* (scripts only) */
+	int		resize;			/* FDISK_RESIZE_* (scripts only) */
+
 	char		*name;			/* partition name */
 	char		*uuid;			/* partition UUID */
 	char		*attrs;			/* partition flags/attributes converted to string */
@@ -150,6 +145,18 @@ struct fdisk_partition {
 			start_follow_default : 1,	/* use default start */
 			used : 1,			/* partition already used */
 			wholedisk : 1;			/* special system partition */
+};
+
+enum {
+	FDISK_MOVE_NONE = 0,
+	FDISK_MOVE_DOWN = -1,
+	FDISK_MOVE_UP = 1
+};
+
+enum {
+	FDISK_RESIZE_NONE = 0,
+	FDISK_RESIZE_REDUCE = -1,
+	FDISK_RESIZE_ENLARGE = 1
 };
 
 #define FDISK_INIT_UNDEF(_x)	((_x) = (__typeof__(_x)) -1)
@@ -182,15 +189,13 @@ struct fdisk_label_operations {
 	int (*verify)(struct fdisk_context *cxt);
 	/* create new disk label */
 	int (*create)(struct fdisk_context *cxt);
-	/* list disklabel details */
-	int (*list)(struct fdisk_context *cxt);
 	/* returns offset and size of the 'n' part of the PT */
-	int (*locate)(struct fdisk_context *cxt, int n, const char **name, off_t *offset, size_t *size);
+	int (*locate)(struct fdisk_context *cxt, int n, const char **name,
+		      uint64_t *offset, size_t *size);
 	/* reorder partitions */
 	int (*reorder)(struct fdisk_context *cxt);
-
-	/* get disk label ID */
-	int (*get_id)(struct fdisk_context *cxt, char **id);
+	/* get details from label */
+	int (*get_item)(struct fdisk_context *cxt, struct fdisk_labelitem *item);
 	/* set disk label ID */
 	int (*set_id)(struct fdisk_context *cxt);
 
@@ -349,7 +354,13 @@ struct fdisk_context {
 	unsigned int readonly : 1,		/* don't write to the device */
 		     display_in_cyl_units : 1,	/* for obscure labels */
 		     display_details : 1,	/* expert display mode */
+		     protect_bootbits : 1,	/* don't zeroize fll irst sector */
+		     wipe_device : 1,		/* wipe device before write */
 		     listonly : 1;		/* list partition, nothing else */
+
+	char *collision;			/* name of already existing FS/PT */
+
+	int sizeunit;				/* SIZE fields, FDISK_SIZEUNIT_* */
 
 	/* alignment */
 	unsigned long grain;		/* alignment unit */
@@ -378,10 +389,7 @@ struct fdisk_context {
 	struct fdisk_script	*script;	/* what we want to follow */
 };
 
-/* partition.c */
-int fdisk_partition_next_partno(struct fdisk_partition *pa,
-				       struct fdisk_context *cxt,
-				       size_t *n);
+int fdisk_wipe_collisions(struct fdisk_context *cxt);
 
 /* context.c */
 extern int __fdisk_switch_label(struct fdisk_context *cxt,
@@ -399,13 +407,25 @@ extern int fdisk_apply_user_device_properties(struct fdisk_context *cxt);
 extern void fdisk_zeroize_device_properties(struct fdisk_context *cxt);
 
 /* utils.c */
-extern int fdisk_init_firstsector_buffer(struct fdisk_context *cxt);
+extern int fdisk_init_firstsector_buffer(struct fdisk_context *cxt,
+			unsigned int protect_off, unsigned int protect_size);
 extern int fdisk_read_firstsector(struct fdisk_context *cxt);
-extern char *fdisk_partname(const char *dev, size_t partno);
 
 /* label.c */
 extern int fdisk_probe_labels(struct fdisk_context *cxt);
 extern void fdisk_deinit_label(struct fdisk_label *lb);
+
+struct fdisk_labelitem {
+	int		id;		/* <label>_ITEM_* */
+	char		type;		/* s = string, j = uint64 */
+	const char	*name;
+
+	union {
+		char		*str;
+		uint64_t	num64;
+	} data;
+};
+
 
 /* ask.c */
 struct fdisk_ask *fdisk_new_ask(void);

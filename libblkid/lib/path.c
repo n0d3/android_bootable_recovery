@@ -1,9 +1,6 @@
 /*
- * Simple functions to access files, paths maybe be globally prefixed by a
- * global prefix to read data from alternative destination (e.g. /proc dump for
- * regression tests).
- *
- * Taken from lscpu.c
+ * Simple functions to access files. Paths can be globally prefixed to read
+ * data from an alternative source (e.g. a /proc dump for regression tests).
  *
  * Copyright (C) 2008 Cai Qian <qcai@redhat.com>
  * Copyright (C) 2008-2012 Karel Zak <kzak@redhat.com>
@@ -106,7 +103,7 @@ path_read_str(char *result, size_t len, const char *path, ...)
 	va_list ap;
 
 	va_start(ap, path);
-	fd = path_vfopen("r", 1, path, ap);
+	fd = path_vfopen("r" UL_CLOEXECSTR, 1, path, ap);
 	va_end(ap);
 
 	if (!fgets(result, len, fd))
@@ -126,7 +123,7 @@ path_read_s32(const char *path, ...)
 	int result;
 
 	va_start(ap, path);
-	fd = path_vfopen("r", 1, path, ap);
+	fd = path_vfopen("r" UL_CLOEXECSTR, 1, path, ap);
 	va_end(ap);
 
 	if (fscanf(fd, "%d", &result) != 1) {
@@ -197,7 +194,7 @@ path_cpuparse(int maxcpus, int islist, const char *path, va_list ap)
 	size_t setsize, len = maxcpus * 7;
 	char buf[len];
 
-	fd = path_vfopen("r", 1, path, ap);
+	fd = path_vfopen("r" UL_CLOEXECSTR, 1, path, ap);
 
 	if (!fgets(buf, len, fd))
 		err(EXIT_FAILURE, _("cannot read %s"), pathbuf);
@@ -247,8 +244,6 @@ path_read_cpulist(int maxcpus, const char *path, ...)
 	return set;
 }
 
-#endif /* HAVE_CPU_SET_T */
-
 void
 path_set_prefix(const char *prefix)
 {
@@ -256,3 +251,5 @@ path_set_prefix(const char *prefix)
 	strncpy(pathbuf, prefix, sizeof(pathbuf));
 	pathbuf[sizeof(pathbuf) - 1] = '\0';
 }
+
+#endif /* HAVE_CPU_SET_T */

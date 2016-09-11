@@ -21,7 +21,7 @@ static blkid_tag blkid_new_tag(void)
 {
 	blkid_tag tag;
 
-	if (!(tag = (blkid_tag) calloc(1, sizeof(struct blkid_struct_tag))))
+	if (!(tag = calloc(1, sizeof(struct blkid_struct_tag))))
 		return NULL;
 
 	INIT_LIST_HEAD(&tag->bit_tags);
@@ -65,6 +65,9 @@ void blkid_free_tag(blkid_tag tag)
 blkid_tag blkid_find_tag_dev(blkid_dev dev, const char *type)
 {
 	struct list_head *p;
+
+	if (!dev || !type)
+		return NULL;
 
 	list_for_each(p, &dev->bid_tags) {
 		blkid_tag tmp = list_entry(p, struct blkid_struct_tag,
@@ -123,6 +126,9 @@ int blkid_set_tag(blkid_dev dev, const char *name,
 	blkid_tag	t = 0, head = 0;
 	char		*val = 0;
 	char		**dev_var = 0;
+
+	if (!dev || !name)
+		return -BLKID_ERR_PARAM;
 
 	if (value && !(val = strndup(value, vlength)))
 		return -BLKID_ERR_MEM;
@@ -231,7 +237,7 @@ int blkid_parse_tag_string(const char *token, char **ret_type, char **ret_val)
 	}
 
 	if (ret_val) {
-		value = value && *value ? strdup(value) : NULL;
+		value = *value ? strdup(value) : NULL;
 		if (!value)
 			goto errout;
 		*ret_val = value;
@@ -364,7 +370,7 @@ try_again:
 	}
 	if (dev && !(dev->bid_flags & BLKID_BID_FL_VERIFIED)) {
 		dev = blkid_verify(cache, dev);
-		if (!dev || (dev && (dev->bid_flags & BLKID_BID_FL_VERIFIED)))
+		if (!dev || dev->bid_flags & BLKID_BID_FL_VERIFIED)
 			goto try_again;
 	}
 
@@ -391,7 +397,7 @@ extern char *optarg;
 extern int optind;
 #endif
 
-void __attribute__((__noreturn__)) usage(char *prog)
+static void __attribute__((__noreturn__)) usage(char *prog)
 {
 	fprintf(stderr, "Usage: %s [-f blkid_file] [-m debug_mask] device "
 		"[type value]\n",

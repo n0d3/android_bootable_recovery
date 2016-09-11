@@ -3,11 +3,13 @@
  * -lrt on systems with old libc.
  */
 #include <time.h>
+#include <signal.h>
+#ifdef HAVE_SYSINFO
 #include <sys/sysinfo.h>
+#endif
 #include <sys/time.h>
 
 #include "c.h"
-#include "nls.h"
 #include "monotonic.h"
 
 int get_boot_time(struct timeval *boot_time)
@@ -21,10 +23,8 @@ int get_boot_time(struct timeval *boot_time)
 	struct sysinfo info;
 #endif
 
-	if (gettimeofday(&now, NULL) != 0) {
-		warn(_("gettimeofday failed"));
+	if (gettimeofday(&now, NULL) != 0)
 		return -errno;
-	}
 #ifdef CLOCK_BOOTTIME
 	if (clock_gettime(CLOCK_BOOTTIME, &hires_uptime) == 0) {
 		TIMESPEC_TO_TIMEVAL(&lores_uptime, &hires_uptime);
@@ -35,7 +35,7 @@ int get_boot_time(struct timeval *boot_time)
 #ifdef HAVE_SYSINFO
 	/* fallback */
 	if (sysinfo(&info) != 0)
-		warn(_("sysinfo failed"));
+		return -errno;
 
 	boot_time->tv_sec = now.tv_sec - info.uptime;
 	boot_time->tv_usec = 0;
@@ -53,7 +53,7 @@ int gettime_monotonic(struct timeval *tv)
 	struct timespec ts;
 
 # ifdef CLOCK_MONOTONIC_RAW
-	/* Linux specific, cant slew */
+	/* Linux specific, can't slew */
 	if (!(ret = clock_gettime(CLOCK_MONOTONIC_RAW, &ts))) {
 # else
 	if (!(ret = clock_gettime(CLOCK_MONOTONIC, &ts))) {
@@ -66,3 +66,5 @@ int gettime_monotonic(struct timeval *tv)
 	return gettimeofday(tv, NULL);
 #endif
 }
+
+

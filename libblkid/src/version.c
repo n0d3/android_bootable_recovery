@@ -16,9 +16,10 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#include <blkid.h>
+#include "blkid.h"
 
 /* LIBBLKID_* defined in the global config.h */
+#include <config.h>
 static const char *lib_version = LIBBLKID_VERSION;	/* release version */
 static const char *lib_date = LIBBLKID_DATE;
 

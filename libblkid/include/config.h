@@ -23,6 +23,9 @@
 /* Define to 1 if you have the <asm/io.h> header file. */
 /* #undef HAVE_ASM_IO_H */
 
+/* Define if btrfs stuff is available */
+#define HAVE_BTRFS_SUPPORT 1
+
 /* Define to 1 if you have the <byteswap.h> header file. */
 #define HAVE_BYTESWAP_H 1
 
@@ -167,11 +170,20 @@
 /* Do we need -lcrypt? */
 #define HAVE_LIBCRYPT 1
 
+/* Define if libmount available. */
+#define HAVE_LIBMOUNT 1
+
 /* Define to 1 if you have the `ncurses' library (-lncurses). */
-#define HAVE_LIBNCURSES 1
+/* #undef HAVE_LIBNCURSES */
 
 /* Define to 1 if you have the `ncursesw' library (-lncursesw). */
-/* #undef HAVE_LIBNCURSESW */
+#define HAVE_LIBNCURSESW 1
+
+/* Define to 1 if you have the `readline' library (-lreadline). */
+#define HAVE_LIBREADLINE 1
+
+/* Define if librtas exists */
+/* #undef HAVE_LIBRTAS */
 
 /* Define if SELinux is available */
 /* #undef HAVE_LIBSELINUX */
@@ -179,8 +191,8 @@
 /* Define if libsystemd is available */
 /* #undef HAVE_LIBSYSTEMD */
 
-/* Define to 1 if you have the `termcap' library (-ltermcap). */
-#define HAVE_LIBTERMCAP 1
+/* Define if libtinfo available. */
+#define HAVE_LIBTINFO 1
 
 /* Define to 1 if you have the `udev' library (-ludev). */
 /* #undef HAVE_LIBUDEV */
@@ -199,6 +211,9 @@
 
 /* Define to 1 if you have the <linux/blkpg.h> header file. */
 #define HAVE_LINUX_BLKPG_H 1
+
+/* Define to 1 if you have the <linux/btrfs.h> header file. */
+#define HAVE_LINUX_BTRFS_H 1
 
 /* Define to 1 if you have the <linux/cdrom.h> header file. */
 #define HAVE_LINUX_CDROM_H 1
@@ -257,6 +272,9 @@
 /* Define to 1 if you have the `mempcpy' function. */
 #define HAVE_MEMPCPY 1
 
+/* Define to 1 if you have the `mkostemp' function. */
+#define HAVE_MKOSTEMP 1
+
 /* Define to 1 if you have the <mntent.h> header file. */
 #define HAVE_MNTENT_H 1
 
@@ -280,6 +298,9 @@
 
 /* Define to 1 if you have the <net/if.h> header file. */
 #define HAVE_NET_IF_H 1
+
+/* Define to 1 if you have the `ntp_gettime' function. */
+#define HAVE_NTP_GETTIME 1
 
 /* Define to 1 if you have the `openat' function. */
 #define HAVE_OPENAT 1
@@ -311,8 +332,11 @@
 /* Define to 1 if you have the `qsort_r' function. */
 #define HAVE_QSORT_R 1
 
+/* Define to 1 if you have the `reboot' function. */
+#define HAVE_REBOOT 1
+
 /* Define if curses library has the resizeterm(). */
-/* #undef HAVE_RESIZETERM */
+#define HAVE_RESIZETERM 1
 
 /* Define to 1 if you have the `rpmatch' function. */
 #define HAVE_RPMATCH 1
@@ -328,6 +352,12 @@
 
 /* scanf %ms modifier */
 #define HAVE_SCANF_MS_MODIFIER 1
+
+/* Define to 1 if you have the `sched_setattr' function. */
+/* #undef HAVE_SCHED_SETATTR */
+
+/* Define to 1 if you have the `sched_setscheduler' function. */
+#define HAVE_SCHED_SETSCHEDULER 1
 
 /* Define to 1 if you have the `secure_getenv' function. */
 #define HAVE_SECURE_GETENV 1
@@ -347,11 +377,17 @@
 /* Define to 1 if you have the `setns' function. */
 #define HAVE_SETNS 1
 
+/* Define to 1 if you have the `setprogname' function. */
+/* #undef HAVE_SETPROGNAME */
+
 /* Define to 1 if you have the `setresgid' function. */
 #define HAVE_SETRESGID 1
 
 /* Define to 1 if you have the `setresuid' function. */
 #define HAVE_SETRESUID 1
+
+/* Define to 1 if you have the <shadow.h> header file. */
+#define HAVE_SHADOW_H 1
 
 /* Define to 1 if the system has the type `sighandler_t'. */
 #define HAVE_SIGHANDLER_T 1
@@ -404,9 +440,6 @@
 /* Define to 1 if have strsignal function prototype */
 #define HAVE_STRSIGNAL_DECL 1
 
-/* Define to 1 if you have the `strtoull' function. */
-#define HAVE_STRTOULL 1
-
 /* Define to 1 if `st_mtim.tv_nsec' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
 
@@ -443,14 +476,20 @@
 /* Define to 1 if you have the <sys/mkdev.h> header file. */
 /* #undef HAVE_SYS_MKDEV_H */
 
+/* Define to 1 if you have the <sys/mount.h> header file. */
+#define HAVE_SYS_MOUNT_H 1
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#define HAVE_SYS_PARAM_H 1
+
 /* Define to 1 if you have the <sys/prctl.h> header file. */
 #define HAVE_SYS_PRCTL_H 1
 
-/* Define to 1 if you have the <sys/queue.h> header file. */
-#define HAVE_SYS_QUEUE_H 1
-
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
+
+/* Define to 1 if you have the <sys/signalfd.h> header file. */
+#define HAVE_SYS_SIGNALFD_H 1
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #define HAVE_SYS_SOCKET_H 1
@@ -467,6 +506,12 @@
 /* Define to 1 if you have the <sys/syscall.h> header file. */
 #define HAVE_SYS_SYSCALL_H 1
 
+/* Define to 1 if you have the <sys/sysmacros.h> header file. */
+#define HAVE_SYS_SYSMACROS_H 1
+
+/* Define to 1 if you have the <sys/timex.h> header file. */
+#define HAVE_SYS_TIMEX_H 1
+
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
 
@@ -476,8 +521,14 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
+/* Define to 1 if you have the <sys/ucred.h> header file. */
+/* #undef HAVE_SYS_UCRED_H */
+
 /* Define to 1 if you have the <sys/un.h> header file. */
 #define HAVE_SYS_UN_H 1
+
+/* Define to 1 if you have the `timer_create' function. */
+/* #undef HAVE_TIMER_CREATE */
 
 /* Define to 1 if the target supports thread-local storage. */
 #define HAVE_TLS 1
@@ -501,13 +552,16 @@
 #define HAVE_UPDWTMP 1
 
 /* Define if curses library has the use_default_colors(). */
-/* #undef HAVE_USE_DEFAULT_COLORS */
+#define HAVE_USE_DEFAULT_COLORS 1
 
 /* Define to 1 if you have the `usleep' function. */
 #define HAVE_USLEEP 1
 
 /* Define to 1 if you have the `utimensat' function. */
 #define HAVE_UTIMENSAT 1
+
+/* Define to 1 if you have the <utmp.h> header file. */
+#define HAVE_UTMP_H 1
 
 /* Define to 1 if you want to use uuid daemon. */
 #define HAVE_UUIDD 1
@@ -531,19 +585,19 @@
 /* #undef HAVE___SECURE_GETENV */
 
 /* libblkid date string */
-#define LIBBLKID_DATE "22-Jul-2014"
+#define LIBBLKID_DATE "11-Aug-2016"
 
 /* libblkid version string */
-#define LIBBLKID_VERSION "2.25.0"
+#define LIBBLKID_VERSION "UNKNOWN.."
 
 /* libfdisk version string */
-#define LIBFDISK_VERSION "2.25.0"
+#define LIBFDISK_VERSION "UNKNOWN.."
 
 /* libmount version string */
-#define LIBMOUNT_VERSION "2.25.0"
+#define LIBMOUNT_VERSION "UNKNOWN.."
 
 /* libsmartcols version string */
-#define LIBSMARTCOLS_VERSION "2.25.0"
+#define LIBSMARTCOLS_VERSION "UNKNOWN.."
 
 /* Should login chown /dev/vcsN? */
 /* #undef LOGIN_CHOWN_VCS */
@@ -554,6 +608,9 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #define LT_OBJDIR ".libs/"
+
+/* Define to 1 if assertions should be disabled. */
+/* #undef NDEBUG */
 
 /* Should chsh allow only shells in /etc/shells? */
 #define ONLY_LISTED_SHELLS 1
@@ -568,7 +625,7 @@
 #define PACKAGE_NAME "util-linux"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "util-linux 2.25.590-bf6c"
+#define PACKAGE_STRING "util-linux UNKNOWN"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "util-linux"
@@ -577,7 +634,7 @@
 #define PACKAGE_URL "http://www.kernel.org/pub/linux/utils/util-linux/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.25.590-bf6c"
+#define PACKAGE_VERSION "UNKNOWN"
 
 /* Should pg ring the bell on invalid keys? */
 #define PG_BELL 1
@@ -606,11 +663,20 @@
 /* Fallback syscall number for sched_getaffinity */
 /* #undef SYS_sched_getaffinity */
 
+/* Fallback syscall number for sched_setattr */
+/* #undef SYS_sched_setattr */
+
 /* Fallback syscall number for setns */
 /* #undef SYS_setns */
 
 /* Fallback syscall number for unshare */
 /* #undef SYS_unshare */
+
+/* Enables colorized output from utils by default */
+#define USE_COLORS_BY_DEFAULT 1
+
+/* Define to 1 if want to ignore mtab in all situations. */
+/* #undef USE_LIBMOUNT_FORCE_MOUNTINFO */
 
 /* Should sulogin use a emergency mount of /dev and /proc? */
 /* #undef USE_SULOGIN_EMERGENCY_MOUNT */
@@ -640,8 +706,11 @@
 /* Should wall and write be installed setgid tty? */
 #define USE_TTY_GROUP 1
 
+/* Define to 1 to remove /bin and /sbin from PATH env.variable */
+/* #undef USE_USRDIR_PATHS_ONLY */
+
 /* Version number of package */
-#define VERSION "2.25.590-bf6c"
+#define VERSION "UNKNOWN"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -654,6 +723,9 @@
 /* #  undef WORDS_BIGENDIAN */
 # endif
 #endif
+
+/* Enable MAP_ANON in sys/mman.h on Mac OS X */
+/* #undef _DARWIN_C_SOURCE */
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE

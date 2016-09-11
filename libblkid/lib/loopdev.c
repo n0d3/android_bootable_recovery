@@ -29,7 +29,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/sysmacros.h>
 #include <inttypes.h>
 #include <dirent.h>
 #include <linux/posix_types.h>
@@ -40,7 +39,6 @@
 #include "pathnames.h"
 #include "loopdev.h"
 #include "canonicalize.h"
-#include "at.h"
 #include "blkdev.h"
 #include "debug.h"
 
@@ -135,7 +133,7 @@ int loopcxt_has_device(struct loopdev_cxt *lc)
  * @lc: context
  * @flags: LOOPDEV_FL_* flags
  *
- * Initilize loop handler.
+ * Initialize loop handler.
  *
  * We have two sets of the flags:
  *
@@ -462,6 +460,7 @@ static int loop_scandir(const char *dirname, int **ary, int hasprefix)
 			tmp = realloc(*ary, arylen * sizeof(int));
 			if (!tmp) {
 				free(*ary);
+				*ary = NULL;
 				closedir(dir);
 				return -1;
 			}
@@ -490,7 +489,7 @@ static int loopcxt_next_from_proc(struct loopdev_cxt *lc)
 	DBG(ITER, ul_debugobj(iter, "scan /proc/partitions"));
 
 	if (!iter->proc)
-		iter->proc = fopen(_PATH_PROC_PARTITIONS, "r");
+		iter->proc = fopen(_PATH_PROC_PARTITIONS, "r" UL_CLOEXECSTR);
 	if (!iter->proc)
 		return 1;
 
@@ -546,7 +545,7 @@ static int loopcxt_next_from_sysfs(struct loopdev_cxt *lc)
 			continue;
 
 		snprintf(name, sizeof(name), "%s/loop/backing_file", d->d_name);
-		if (fstat_at(fd, _PATH_SYS_BLOCK, name, &st, 0) != 0)
+		if (fstatat(fd, name, &st, 0) != 0)
 			continue;
 
 		if (loopiter_set_device(lc, d->d_name) == 0)
@@ -878,7 +877,7 @@ int loopmod_supports_partscan(void)
 	if (get_linux_version() >= KERNEL_VERSION(3,2,0))
 		return 1;
 
-	f = fopen("/sys/module/loop/parameters/max_part", "r");
+	f = fopen("/sys/module/loop/parameters/max_part", "r" UL_CLOEXECSTR);
 	if (!f)
 		return 0;
 	rc = fscanf(f, "%d", &ret);
@@ -949,6 +948,28 @@ int loopcxt_is_readonly(struct loopdev_cxt *lc)
 		struct loop_info64 *lo = loopcxt_get_info(lc);
 		if (lo)
 			return lo->lo_flags & LO_FLAGS_READ_ONLY;
+	}
+	return 0;
+}
+
+/*
+ * @lc: context
+ *
+ * Returns: 1 if the dio flags is set.
+ */
+int loopcxt_is_dio(struct loopdev_cxt *lc)
+{
+	struct sysfs_cxt *sysfs = loopcxt_get_sysfs(lc);
+
+	if (sysfs) {
+		int fl;
+		if (sysfs_read_int(sysfs, "loop/dio", &fl) == 0)
+			return fl;
+	}
+	if (loopcxt_ioctl_enabled(lc)) {
+		struct loop_info64 *lo = loopcxt_get_info(lc);
+		if (lo)
+			return lo->lo_flags & LO_FLAGS_DIRECT_IO;
 	}
 	return 0;
 }
@@ -1193,6 +1214,7 @@ static int loopcxt_check_size(struct loopdev_cxt *lc, int file_fd)
 int loopcxt_setup_device(struct loopdev_cxt *lc)
 {
 	int file_fd, dev_fd, mode = O_RDWR, rc = -1, cnt = 0;
+	int errsv = 0;
 
 	if (!lc || !*lc->device || !lc->filename)
 		return -EINVAL;
@@ -1242,7 +1264,7 @@ int loopcxt_setup_device(struct loopdev_cxt *lc)
 		/* We have permissions to open /dev/loop-control, but open
 		 * /dev/loopN failed with EACCES, it's probably because udevd
 		 * does not applied chown yet. Let's wait a moment. */
-		usleep(25000);
+		xusleep(25000);
 	} while (cnt++ < 16);
 
 	if (dev_fd < 0) {
@@ -1257,6 +1279,7 @@ int loopcxt_setup_device(struct loopdev_cxt *lc)
 	 */
 	if (ioctl(dev_fd, LOOP_SET_FD, file_fd) < 0) {
 		rc = -errno;
+		errsv = errno;
 		DBG(SETUP, ul_debugobj(lc, "LOOP_SET_FD failed: %m"));
 		goto err;
 	}
@@ -1264,6 +1287,8 @@ int loopcxt_setup_device(struct loopdev_cxt *lc)
 	DBG(SETUP, ul_debugobj(lc, "LOOP_SET_FD: OK"));
 
 	if (ioctl(dev_fd, LOOP_SET_STATUS64, &lc->info)) {
+		rc = -errno;
+		errsv = errno;
 		DBG(SETUP, ul_debugobj(lc, "LOOP_SET_STATUS64 failed: %m"));
 		goto err;
 	}
@@ -1286,6 +1311,8 @@ err:
 		close(file_fd);
 	if (dev_fd >= 0 && rc != -EBUSY)
 		ioctl(dev_fd, LOOP_CLR_FD, 0);
+	if (errsv)
+		errno = errsv;
 
 	DBG(SETUP, ul_debugobj(lc, "failed [rc=%d]", rc));
 	return rc;
@@ -1306,6 +1333,24 @@ int loopcxt_set_capacity(struct loopdev_cxt *lc)
 	}
 
 	DBG(CXT, ul_debugobj(lc, "capacity set"));
+	return 0;
+}
+
+int loopcxt_set_dio(struct loopdev_cxt *lc, unsigned long use_dio)
+{
+	int fd = loopcxt_get_fd(lc);
+
+	if (fd < 0)
+		return -EINVAL;
+
+	/* Kernels prior to v4.4 don't support this ioctl */
+	if (ioctl(fd, LOOP_SET_DIRECT_IO, use_dio) < 0) {
+		int rc = -errno;
+		DBG(CXT, ul_debugobj(lc, "LOOP_SET_DIRECT_IO failed: %m"));
+		return rc;
+	}
+
+	DBG(CXT, ul_debugobj(lc, "direct io set"));
 	return 0;
 }
 

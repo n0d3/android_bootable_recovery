@@ -9,8 +9,13 @@
  * %End-Header%
  */
 
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
+#ifndef _LARGEFILE_SOURCE
+# define _LARGEFILE_SOURCE
+#endif
+
+#ifndef _LARGEFILE64_SOURCE
+# define _LARGEFILE64_SOURCE
+#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -65,7 +70,7 @@ static _syscall5(int, _llseek, unsigned int, fd, unsigned long, offset_high,
 		 unsigned long, offset_low, blkid_loff_t *, result,
 		 unsigned int, origin)
 #endif
-/*
+
 static blkid_loff_t my_llseek(int fd, blkid_loff_t offset, int origin)
 {
 	blkid_loff_t result;
@@ -82,7 +87,7 @@ static blkid_loff_t my_llseek(int fd, blkid_loff_t offset, int origin)
 #endif
 	return (retval == -1 ? (blkid_loff_t) retval : result);
 }
-*/
+
 #endif	/* __alpha__ || __ia64__ */
 
 #endif /* HAVE_LLSEEK */
@@ -101,7 +106,7 @@ blkid_loff_t blkid_llseek(int fd, blkid_loff_t offset, int whence)
 		return -1;
 	}
 
-	result = lseek64(fd, offset, whence);
+	result = my_llseek(fd, offset, whence);
 	if (result == -1 && errno == ENOSYS) {
 		/*
 		 * Just in case this code runs on top of an old kernel

@@ -29,7 +29,7 @@ static inline int write_all(int fd, const void *buf, size_t count)
 		} else if (errno != EINTR && errno != EAGAIN)
 			return -1;
 		if (errno == EAGAIN)	/* Try later, *sigh* */
-			usleep(250000);
+			xusleep(250000);
 	}
 	return 0;
 }
@@ -49,7 +49,7 @@ static inline int fwrite_all(const void *ptr, size_t size,
 		} else if (errno != EINTR && errno != EAGAIN)
 			return -1;
 		if (errno == EAGAIN)	/* Try later, *sigh* */
-			usleep(250000);
+			xusleep(250000);
 	}
 	return 0;
 }
@@ -64,9 +64,8 @@ static inline ssize_t read_all(int fd, char *buf, size_t count)
 	while (count > 0) {
 		ret = read(fd, buf, count);
 		if (ret <= 0) {
-			if ((errno == EAGAIN || errno == EINTR || ret == 0) &&
-			    (tries++ < 5)) {
-				usleep(250000);
+			if (ret < 0 && (errno == EAGAIN || errno == EINTR) && (tries++ < 5)) {
+				xusleep(250000);
 				continue;
 			}
 			return c ? c : -1;
@@ -79,6 +78,5 @@ static inline ssize_t read_all(int fd, char *buf, size_t count)
 	}
 	return c;
 }
-
 
 #endif /* UTIL_LINUX_ALL_IO_H */
