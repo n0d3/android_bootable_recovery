@@ -3,6 +3,7 @@
    Copyright (C) 1993 Werner Almesberger <werner.almesberger@lrc.di.epfl.ch>
    Copyright (C) 1998 Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
    Copyright (C) 2008-2014 Daniel Baumann <mail@daniel-baumann.ch>
+   Copyright (C) 2015 Andreas Bombe <aeb@debian.org>
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,10 +28,11 @@
 #ifndef _DOSFSCK_H
 #define _DOSFSCK_H
 
+#include <sys/types.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <endian.h>
+#include "endian_compat.h"
 
 #include "msdos_fs.h"
 
@@ -120,7 +122,7 @@ struct info_sector {
 };
 
 typedef struct {
-    uint8_t name[8], ext[3];	/* name and extension */
+    uint8_t name[MSDOS_NAME];	/* name including extension */
     uint8_t attr;		/* attribute bits */
     uint8_t lcase;		/* Case for base and extension */
     uint8_t ctime_ms;		/* Creation time, milliseconds */
@@ -135,8 +137,8 @@ typedef struct {
 typedef struct _dos_file {
     DIR_ENT dir_ent;
     char *lfn;
-    loff_t offset;
-    loff_t lfn_offset;
+    off_t offset;
+    off_t lfn_offset;
     struct _dos_file *parent;	/* parent directory */
     struct _dos_file *next;	/* next entry */
     struct _dos_file *first;	/* first entry (directory only) */
@@ -149,19 +151,19 @@ typedef struct {
 
 typedef struct {
     int nfats;
-    loff_t fat_start;
-    unsigned int fat_size;	/* unit is bytes */
+    off_t fat_start;
+    off_t fat_size;		/* unit is bytes */
     unsigned int fat_bits;	/* size of a FAT entry */
     unsigned int eff_fat_bits;	/* # of used bits in a FAT entry */
     uint32_t root_cluster;	/* 0 for old-style root dir */
-    loff_t root_start;
+    off_t root_start;
     unsigned int root_entries;
-    loff_t data_start;
+    off_t data_start;
     unsigned int cluster_size;
-    uint32_t clusters;
-    loff_t fsinfo_start;	/* 0 if not present */
+    uint32_t data_clusters;	/* not including two reserved cluster numbers */
+    off_t fsinfo_start;		/* 0 if not present */
     long free_clusters;
-    loff_t backupboot_start;	/* 0 if not present */
+    off_t backupboot_start;	/* 0 if not present */
     unsigned char *fat;
     DOS_FILE **cluster_owner;
     char *label;

@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     rw = interactive = 1;
     check_atari();
 
-    while ((c = getopt(argc, argv, "Aad:bflnprtu:vVwy")) != -1)
+    while ((c = getopt(argc, argv, "Aa:d:bflnprtu:vVwy")) != -1)
 	switch (c) {
 	case 'A':		/* toggle Atari format */
 	    atari_format = !atari_format;
@@ -209,7 +209,8 @@ exit:
 
     if (!boot_only)
 	printf("%s: %u files, %lu/%lu clusters\n", argv[optind],
-	       n_files, (unsigned long)fs.clusters - free_clusters, (unsigned long)fs.clusters);
+	       n_files, (unsigned long)fs.data_clusters - free_clusters,
+	       (unsigned long)fs.data_clusters);
 
     return fs_close(rw) ? 1 : 0;
 }

@@ -1,4 +1,4 @@
-/* version.h
+/* src/version.h.  Generated from version.h.in by configure.
 
    Copyright (C) 1998-2005 Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
    Copyright (C) 2008-2014 Daniel Baumann <mail@daniel-baumann.ch>
@@ -23,7 +23,7 @@
 #ifndef _version_h
 #define _version_h
 
-#define VERSION "3.0.28"
-#define VERSION_DATE "2015-05-16"
+#define VERSION "4.0"
+#define VERSION_DATE "2016-05-06"
 
 #endif

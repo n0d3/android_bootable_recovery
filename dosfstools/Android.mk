@@ -42,7 +42,11 @@ LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := src/mkfs.fat.c
+LOCAL_SRC_FILES := \
+	src/device_info.c \
+	src/blkdev/linux_version.c \
+	src/blkdev/blkdev.c \
+	src/mkfs.fat.c
 
 LOCAL_SHARED_LIBRARIES := libc
 LOCAL_CFLAGS += -D_USING_BIONIC_

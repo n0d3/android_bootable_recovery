@@ -3,6 +3,7 @@
    Copyright (C) 1993 Werner Almesberger <werner.almesberger@lrc.di.epfl.ch>
    Copyright (C) 1998 Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
    Copyright (C) 2008-2014 Daniel Baumann <mail@daniel-baumann.ch>
+   Copyright (C) 2015 Andreas Bombe <aeb@debian.org>
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <time.h>
 
 #include "common.h"
@@ -37,6 +37,10 @@
 #include "file.h"
 #include "lfn.h"
 #include "check.h"
+
+
+/* the longest path on the filesystem that can be handled by path_name() */
+#define PATH_NAME_MAX 1023
 
 static DOS_FILE *root;
 
@@ -56,7 +60,7 @@ static DOS_FILE *root;
 
 #define MODIFY_START(p,v,fs)						\
   do {									\
-    uint32_t __v = (v);						\
+    uint32_t __v = (v);							\
     if (!p->offset) {							\
 	/* writing to fake entry for FAT32 root dir */			\
 	if (!__v) die("Oops, deleting FAT32 root dir!");		\
@@ -64,7 +68,7 @@ static DOS_FILE *root;
 	p->dir_ent.start = htole16(__v&0xffff);				\
 	p->dir_ent.starthi = htole16(__v>>16);				\
 	__v = htole32(__v);						\
-	fs_write((loff_t)offsetof(struct boot_sector,root_cluster),	\
+	fs_write(offsetof(struct boot_sector,root_cluster),		\
 	         sizeof(((struct boot_sector *)0)->root_cluster),	\
 		 &__v);							\
     }									\
@@ -75,16 +79,16 @@ static DOS_FILE *root;
     }									\
   } while(0)
 
-loff_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
+off_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
 {
     static int curr_num = 0;
-    loff_t offset;
+    off_t offset;
 
     if (fs->root_cluster) {
 	DIR_ENT d2;
 	int i = 0, got = 0;
 	uint32_t clu_num, prev = 0;
-	loff_t offset2;
+	off_t offset2;
 
 	clu_num = fs->root_cluster;
 	offset = cluster_start(fs, clu_num);
@@ -111,7 +115,7 @@ loff_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
 	    for (clu_num = prev + 1; clu_num != prev; clu_num++) {
 		FAT_ENTRY entry;
 
-		if (clu_num >= fs->clusters + 2)
+		if (clu_num >= fs->data_clusters + 2)
 		    clu_num = 2;
 		get_fat(&entry, fs->fat, clu_num, fs);
 		if (!entry.value)
@@ -132,8 +136,7 @@ loff_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
 	while (1) {
 	    char expanded[12];
 	    sprintf(expanded, pattern, curr_num);
-	    memcpy(de->name, expanded, 8);
-	    memcpy(de->ext, expanded + 8, 3);
+	    memcpy(de->name, expanded, MSDOS_NAME);
 	    clu_num = fs->root_cluster;
 	    i = 0;
 	    offset2 = cluster_start(fs, clu_num);
@@ -177,8 +180,7 @@ loff_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
 	while (1) {
 	    char expanded[12];
 	    sprintf(expanded, pattern, curr_num);
-	    memcpy(de->name, expanded, 8);
-	    memcpy(de->ext, expanded + 8, 3);
+	    memcpy(de->name, expanded, MSDOS_NAME);
 	    for (scan = 0; scan < fs->root_entries; scan++)
 		if (scan != next_free &&
 		    !strncmp((const char *)root[scan].name,
@@ -205,12 +207,12 @@ loff_t alloc_rootdir_entry(DOS_FS * fs, DIR_ENT * de, const char *pattern)
  */
 static char *path_name(DOS_FILE * file)
 {
-    static char path[PATH_MAX * 2];
+    static char path[PATH_NAME_MAX * 2];
 
     if (!file)
 	*path = 0;		/* Reached the root directory */
     else {
-	if (strlen(path_name(file->parent)) > PATH_MAX)
+	if (strlen(path_name(file->parent)) > PATH_NAME_MAX)
 	    die("Path name too long.");
 	if (strcmp(path, "/") != 0)
 	    strcat(path, "/");
@@ -269,7 +271,7 @@ static int bad_name(DOS_FILE * file)
     int i, spc, suspicious = 0;
     const char *bad_chars = atari_format ? "*?\\/:" : "*?<>|\"\\/:";
     const unsigned char *name = file->dir_ent.name;
-    const unsigned char *ext = file->dir_ent.ext;
+    const unsigned char *ext = name + 8;
 
     /* Do not complain about (and auto-correct) the extended attribute files
      * of OS/2. */
@@ -287,21 +289,12 @@ static int bad_name(DOS_FILE * file)
     if (file->dir_ent.lcase & FAT_NO_83NAME)
 	return 0;
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < MSDOS_NAME; i++) {
 	if (name[i] < ' ' || name[i] == 0x7f)
 	    return 1;
 	if (name[i] > 0x7f)
 	    ++suspicious;
 	if (strchr(bad_chars, name[i]))
-	    return 1;
-    }
-
-    for (i = 0; i < 3; i++) {
-	if (ext[i] < ' ' || ext[i] == 0x7f)
-	    return 1;
-	if (ext[i] > 0x7f)
-	    ++suspicious;
-	if (strchr(bad_chars, ext[i]))
 	    return 1;
     }
 
@@ -336,7 +329,7 @@ static int bad_name(DOS_FILE * file)
     return 0;
 }
 
-static void lfn_remove(loff_t from, loff_t to)
+static void lfn_remove(off_t from, off_t to)
 {
     DIR_ENT empty;
 
@@ -360,7 +353,7 @@ static void drop_file(DOS_FS * fs, DOS_FILE * file)
     if (file->lfn)
 	lfn_remove(file->lfn_offset, file->offset);
     for (cluster = FSTART(file, fs); cluster > 0 && cluster <
-	 fs->clusters + 2; cluster = next_cluster(fs, cluster))
+	 fs->data_clusters + 2; cluster = next_cluster(fs, cluster))
 	set_owner(fs, cluster, NULL);
     --n_files;
 }
@@ -396,8 +389,7 @@ static void auto_rename(DOS_FILE * file)
 	char num[8];
 	sprintf(num, "%07lu", (unsigned long)number);
 	memcpy(file->dir_ent.name, "FSCK", 4);
-	memcpy(file->dir_ent.name + 4, num, 4);
-	memcpy(file->dir_ent.ext, num + 4, 3);
+	memcpy(file->dir_ent.name + 4, num, 7);
 	for (walk = first; walk; walk = walk->next)
 	    if (walk != file
 		&& !strncmp((const char *)walk->dir_ent.name,
@@ -410,7 +402,7 @@ static void auto_rename(DOS_FILE * file)
 		file->dir_ent.lcase &= ~FAT_NO_83NAME;
 		/* reset the attributes, only keep DIR and VOLUME */
 		file->dir_ent.attr &= ~(ATTR_DIR | ATTR_VOLUME);
-		fs_write(file->offset, MSDOS_NAME + 2, file->dir_ent.name);
+		fs_write(file->offset, MSDOS_NAME + 2, &file->dir_ent);
 	    } else {
 		fs_write(file->offset, MSDOS_NAME, file->dir_ent.name);
 	    }
@@ -453,7 +445,7 @@ static void rename_file(DOS_FILE * file)
 		    file->dir_ent.lcase &= ~FAT_NO_83NAME;
 		    /* reset the attributes, only keep DIR and VOLUME */
 		    file->dir_ent.attr &= ~(ATTR_DIR | ATTR_VOLUME);
-		    fs_write(file->offset, MSDOS_NAME + 2, file->dir_ent.name);
+		    fs_write(file->offset, MSDOS_NAME + 2, &file->dir_ent);
 		} else {
 		    fs_write(file->offset, MSDOS_NAME, file->dir_ent.name);
 		}
@@ -556,13 +548,15 @@ static int check_file(DOS_FS * fs, DOS_FILE * file)
 	    die("Bad FAT32 root directory! (bad start cluster 1)\n");
 	MODIFY_START(file, 0, fs);
     }
-    if (FSTART(file, fs) >= fs->clusters + 2) {
+    if (FSTART(file, fs) >= fs->data_clusters + 2) {
 	printf
 	    ("%s\n  Start cluster beyond limit (%lu > %lu). Truncating file.\n",
-	     path_name(file), (unsigned long)FSTART(file, fs), (unsigned long)(fs->clusters + 1));
+	     path_name(file), (unsigned long)FSTART(file, fs),
+	     (unsigned long)(fs->data_clusters + 1));
 	if (!file->offset)
 	    die("Bad FAT32 root directory! (start cluster beyond limit: %lu > %lu)\n",
-		(unsigned long)FSTART(file, fs), (unsigned long)(fs->clusters + 1));
+		(unsigned long)FSTART(file, fs),
+		(unsigned long)(fs->data_clusters + 1));
 	MODIFY_START(file, 0, fs);
     }
     clusters = prev = 0;
@@ -585,10 +579,10 @@ static int check_file(DOS_FS * fs, DOS_FILE * file)
 	if (!(file->dir_ent.attr & ATTR_DIR) && le32toh(file->dir_ent.size) <=
 	    (uint64_t)clusters * fs->cluster_size) {
 	    printf
-		("%s\n  File size is %u bytes, cluster chain length is > %lu "
+		("%s\n  File size is %u bytes, cluster chain length is > %llu "
 		 "bytes.\n  Truncating file to %u bytes.\n", path_name(file),
 		 le32toh(file->dir_ent.size),
-		 (uint64_t)clusters * fs->cluster_size,
+		 (unsigned long long)clusters * fs->cluster_size,
 		 le32toh(file->dir_ent.size));
 	    truncate_file(fs, file, clusters);
 	    break;
@@ -848,7 +842,7 @@ static void test_file(DOS_FS * fs, DOS_FILE * file, int read_test)
     uint32_t walk, prev, clusters, next_clu;
 
     prev = clusters = 0;
-    for (walk = FSTART(file, fs); walk > 1 && walk < fs->clusters + 2;
+    for (walk = FSTART(file, fs); walk > 1 && walk < fs->data_clusters + 2;
 	 walk = next_clu) {
 	next_clu = next_cluster(fs, walk);
 
@@ -889,7 +883,7 @@ static void test_file(DOS_FS * fs, DOS_FILE * file, int read_test)
 	set_owner(fs, walk, file);
     }
     /* Revert ownership (for now) */
-    for (walk = FSTART(file, fs); walk > 1 && walk < fs->clusters + 2;
+    for (walk = FSTART(file, fs); walk > 1 && walk < fs->data_clusters + 2;
 	 walk = next_cluster(fs, walk))
 	if (bad_cluster(fs, walk))
 	    break;
@@ -909,7 +903,7 @@ static void undelete(DOS_FS * fs, DOS_FILE * file)
 
     walk = FSTART(file, fs);
 
-    while (left && (walk >= 2) && (walk < fs->clusters + 2)) {
+    while (left && (walk >= 2) && (walk < fs->data_clusters + 2)) {
 
 	FAT_ENTRY curEntry;
 	get_fat(&curEntry, fs->fat, walk, fs);
@@ -952,7 +946,7 @@ static void new_dir(void)
  * @param           cp
  */
 static void add_file(DOS_FS * fs, DOS_FILE *** chain, DOS_FILE * parent,
-		     loff_t offset, FDSC ** cp)
+		     off_t offset, FDSC ** cp)
 {
     DOS_FILE *new;
     DIR_ENT de;
