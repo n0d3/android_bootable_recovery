@@ -813,6 +813,31 @@ void DataManager::SetDefaultValues()
 	mConst.SetValue("tw_has_mtp", "0");
 	mConst.SetValue("tw_mtp_enabled", "0");
 #endif
+#ifdef TARGET_RECOVERY_IS_MULTIROM
+	// doesn't seem to be used but add it back anyway
+	mConst.SetValue("tw_device_name", TARGET_DEVICE);
+#ifdef TW_MROM_REC_VERSION_STR
+	// mrom build version needed by splash (parse it just like in multirom.cpp)
+	if(strlen(TW_MROM_REC_VERSION_STR) == sizeof("YYYYMMDD-PP")-1)
+	{
+		int patch = atoi(TW_MROM_REC_VERSION_STR+sizeof("YYYYMMDD-")-1);
+		std::string res(TW_MROM_REC_VERSION_STR, sizeof("YYYYMMDD")-1);
+
+		res.insert(6, "-");
+		res.insert(4, "-");
+
+		if(patch > 0)
+		{
+			char buff[5];
+			snprintf(buff, sizeof(buff), " p%d", patch);
+			res += buff;
+		}
+		//res.insert(0, "_"); //we dont want that forced in the xml
+		SetValue(TW_MROM_REC_VERSION_VAR, res);
+	}
+#endif
+	mPersist.SetValue(TW_AUTO_INJECT_MROM, "1");
+#endif //TARGET_RECOVERY_IS_MULTIROM
 	mPersist.SetValue("tw_mount_system_ro", "2");
 	mPersist.SetValue("tw_never_show_system_ro_page", "0");
 	mPersist.SetValue("tw_language", EXPAND(TW_DEFAULT_LANGUAGE));

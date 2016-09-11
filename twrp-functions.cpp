@@ -57,6 +57,23 @@ extern "C" {
 	#include "libcrecovery/common.h"
 }
 
+#ifdef TARGET_RECOVERY_IS_MULTIROM
+    #include <ctype.h>
+
+    #include "gui/objects.hpp"
+
+    #ifdef HAVE_SELINUX
+        #include <selinux/selinux.h>
+        #include <selinux/label.h>
+        #include <selinux/android.h>
+        #include <selinux/label.h>
+    #endif
+
+    extern "C" {
+        #include "minuitwrp/minui.h"
+    }
+#endif //TARGET_RECOVERY_IS_MULTIROM
+
 /* Execute a command */
 int TWFunc::Exec_Cmd(const string& cmd, string &result) {
 	FILE* exec;
@@ -94,6 +111,29 @@ int TWFunc::Exec_Cmd(const string& cmd) {
 		}
 	}
 }
+
+#ifdef TARGET_RECOVERY_IS_MULTIROM
+int TWFunc::Exec_Cmd_Show_Output(const string& cmd) {
+	FILE* exec;
+	char buffer[130];
+	int ret = 0;
+	exec = __popen(cmd.c_str(), "r");
+
+	if (!exec)
+		return -1;
+
+	while(!feof(exec)) {
+		memset(buffer, 0, sizeof(buffer));
+		if (fgets(buffer, 128, exec) != NULL) {
+			buffer[128] = '\n';
+			buffer[129] = NULL;
+			gui_print(buffer);
+		}
+	}
+	ret = __pclose(exec);
+	return ret;
+}
+#endif //TARGET_RECOVERY_IS_MULTIROM
 
 // Returns "file.name" from a full /path/to/file.name
 string TWFunc::Get_Filename(string Path) {
@@ -728,6 +768,24 @@ int TWFunc::write_file(string fn, string& line) {
 	return -1;
 }
 
+#ifdef TARGET_RECOVERY_IS_MULTIROM
+int TWFunc::write_file(string fn, const string& line) {
+	return write_file(fn, line, "we");
+}
+
+int TWFunc::write_file(string fn, const string& line, const char *mode) {
+	FILE *file;
+	file = fopen(fn.c_str(), mode);
+	if (file != NULL) {
+		fwrite(line.c_str(), line.size(), 1, file);
+		fclose(file);
+		return 0;
+	}
+	LOGINFO("Cannot find file %s\n", fn.c_str());
+	return -1;
+}
+#endif //TARGET_RECOVERY_IS_MULTIROM
+
 bool TWFunc::Install_SuperSU(void) {
 	if (!PartitionManager.Mount_By_Path("/system", true))
 		return false;
@@ -1048,6 +1106,109 @@ void TWFunc::Disable_Stock_Recovery_Replace(void) {
 		PartitionManager.UnMount_By_Path("/system", false);
 	}
 }
+
+#ifdef TARGET_RECOVERY_IS_MULTIROM
+std::string TWFunc::getROMName()
+{
+	std::string res;
+	bool mount_state = PartitionManager.Is_Mounted_By_Path("/system");
+	std::vector<string> buildprop;
+	if (!PartitionManager.Mount_By_Path("/system", true)) {
+		return res;
+	}
+	if (TWFunc::read_file("/system/build.prop", buildprop) != 0) {
+		LOGINFO("Unable to open /system/build.prop for getting backup name.\n");
+		if (!mount_state)
+			PartitionManager.UnMount_By_Path("/system", false);
+		return res;
+	}
+	int line_count = buildprop.size();
+	int index;
+	size_t start_pos = 0, end_pos;
+	string propname;
+	for (index = 0; index < line_count; index++) {
+		end_pos = buildprop.at(index).find("=", start_pos);
+		propname = buildprop.at(index).substr(start_pos, end_pos);
+		if (propname == "ro.build.display.id") {
+			res = buildprop.at(index).substr(end_pos + 1, buildprop.at(index).size());
+			if (res.size() > MAX_BACKUP_NAME_LEN)
+				res.resize(MAX_BACKUP_NAME_LEN);
+			break;
+		}
+	}
+	if (res.empty()) {
+		LOGINFO("ro.build.display.id not found in build.prop\n");
+	}
+	if (!mount_state)
+		PartitionManager.UnMount_By_Path("/system", false);
+	return res;
+}
+
+void TWFunc::stringReplace(std::string& str, char before, char after)
+{
+	const size_t size = str.size();
+	for(size_t i = 0; i < size; ++i)
+	{
+		char& c = str[i];
+		if(c == before)
+			c = after;
+	}
+}
+
+void TWFunc::trim(std::string& str)
+{
+	size_t start = 0, len;
+	for(size_t i = 0; i < str.size() && isspace(str[i]); ++i)
+		++start;
+
+	if(start >= str.size())
+	{
+		str = "";
+		return;
+	}
+
+	len = str.size() - start;
+	for(size_t i = str.size() - 1; i > start && isspace(str[i]); --i)
+		--len;
+	str = str.substr(start, len);
+}
+
+int64_t TWFunc::getFreeSpace(const std::string& path)
+{
+	struct statfs buf; /* allocate a buffer */
+	int rc;
+
+	if (statfs(path.c_str(), &buf) < 0)
+		return -1;
+
+	return int64_t(buf.f_bsize) * int64_t(buf.f_bavail);
+}
+
+#ifdef HAVE_SELINUX
+bool TWFunc::restorecon(const std::string& path, struct selabel_handle *sh)
+{
+	struct stat info;
+	char *oldcontext, *newcontext;
+	if (lgetfilecon(path.c_str(), &oldcontext) < 0 || stat(path.c_str(), &info) < 0) {
+		LOGINFO("Couldn't get selinux context and stat() for %s\n", path.c_str());
+		return false;
+	}
+	if (selabel_lookup(sh, &newcontext, path.c_str(), info.st_mode) < 0) {
+		LOGINFO("Couldn't lookup selinux context for %s\n", path.c_str());
+		return false;
+	}
+	if (strcmp(oldcontext, newcontext) != 0) {
+		LOGINFO("Relabeling %s from %s to %s\n", path.c_str(), oldcontext, newcontext);
+		if (lsetfilecon(path.c_str(), newcontext) < 0) {
+			LOGINFO("Couldn't label %s with %s: %s\n", path.c_str(), newcontext, strerror(errno));
+		}
+	}
+	freecon(oldcontext);
+	freecon(newcontext);
+	return true;
+}
+#endif
+#endif //TARGET_RECOVERY_IS_MULTIROM
 
 unsigned long long TWFunc::IOCTL_Get_Block_Size(const char* block_device) {
 	unsigned long block_device_size;
