@@ -182,6 +182,8 @@ int TWFunc::Try_Decrypting_File(string fn, string password) {
 	int firstbyte = 0, secondbyte = 0, key_len;
 	size_t _j = 0;
 	size_t _key_data_len = 0;
+	uint8_t _iv[OAES_BLOCK_SIZE] = "";
+	uint8_t _pad = 0;
 
 	// mostly kanged from OpenAES oaes.c
 	for( _j = 0; _j < 32; _j++ )
@@ -216,7 +218,7 @@ int TWFunc::Try_Decrypting_File(string fn, string password) {
 		oaes_free(&ctx);
 		return -1;
 	}
-	if (oaes_decrypt(ctx, buffer, read_len, NULL, &out_len) != OAES_RET_SUCCESS) {
+	if (oaes_decrypt(ctx, buffer, read_len, NULL, &out_len, NULL, NULL) != OAES_RET_SUCCESS) {
 		LOGERR("Error: Failed to retrieve required buffer size for trying decryption.\n");
 		fclose(f);
 		oaes_free(&ctx);
@@ -229,7 +231,7 @@ int TWFunc::Try_Decrypting_File(string fn, string password) {
 		oaes_free(&ctx);
 		return -1;
 	}
-	if (oaes_decrypt(ctx, buffer, read_len, buffer_out, &out_len) != OAES_RET_SUCCESS) {
+	if (oaes_decrypt(ctx, buffer, read_len, buffer_out, &out_len, _iv, _pad) != OAES_RET_SUCCESS) {
 		LOGERR("Failed to decrypt file '%s'\n", fn.c_str());
 		fclose(f);
 		free(buffer_out);
