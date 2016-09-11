@@ -1698,6 +1698,14 @@
                                 <image checked="checkbox_true" unchecked="checkbox_false" />
                         </object>
 
+                        <object type="checkbox">
+                                <placement x="%col3_x%" y="%nandcheck_row9%" />
+                                <font resource="font" color="%text_color%" />
+                                <text>Exclude dalvik-cache from backup.</text>
+                                <data variable="tw_skip_dalvik" />
+                                <image checked="checkbox_true" unchecked="checkbox_false" />
+                        </object>
+
 			<object type="slider">
 				<text>Swipe to Back Up</text>
 				<actions>

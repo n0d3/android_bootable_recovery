@@ -685,6 +685,7 @@ void DataManager::SetDefaultValues()
 	mPersist.SetValue(TW_TIME_ZONE_VAR, "CST6CDT,M3.2.0,M11.1.0");
 	mPersist.SetValue(TW_GUI_SORT_ORDER, "1");
 	mPersist.SetValue(TW_RM_RF_VAR, "0");
+	mPersist.SetValue(TW_SKIP_DALVIK, "0");
 	mPersist.SetValue(TW_SKIP_MD5_CHECK_VAR, "0");
 	mPersist.SetValue(TW_SKIP_MD5_GENERATE_VAR, "0");
 	mPersist.SetValue(TW_SDEXT_SIZE, "0");

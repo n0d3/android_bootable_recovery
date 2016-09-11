@@ -120,7 +120,8 @@ public:
 	string Crypto_Key_Location;                                               // Location of the crypto key used for decrypting encrypted data partitions
 	unsigned int MTP_Storage_ID;
 	string Adopted_GUID;
-
+	unsigned long long Dalvik_Cache_Size;					  // Size of dalvik-cache (used when calculating the backup size if we skip dalvik during backup)
+	
 protected:
 	bool Has_Data_Media;                                                      // Indicates presence of /data/media, may affect wiping and backup methods
 	void Setup_Data_Media();                                                  // Sets up a partition as a /data/media emulated storage partition
@@ -169,6 +170,7 @@ private:
 	bool Is_Sparse_Image(const string& Filename);                             // Determines if a file is in sparse image format
 	bool Flash_Sparse_Image(const string& Filename);                          // Flashes a sparse image using simg2img
 	bool Flash_Image_FI(const string& Filename, ProgressTracking *progress);  // Flashes an image to the partition using flash_image for mtd nand
+	void CheckFor_Dalvik_Cache(void);					  // Check partition for dalvik-cache
 
 private:
 	bool Can_Be_Mounted;                                                      // Indicates that the partition can be mounted

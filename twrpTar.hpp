@@ -64,6 +64,7 @@ public:
 	int use_compression;
 	int split_archives;
 	int has_data_media;
+	int skip_dalvik;
 	string backup_name;
 	int progress_pipe_fd;
 	string partition_name;

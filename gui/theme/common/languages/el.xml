@@ -198,6 +198,7 @@
         <string name="enc_enabled">ενεργοποιημένο</string>
         <string name="enable_backup_comp_chk">Ενεργοποιήσετε τη συμπίεση</string>
         <string name="skip_md5_backup_chk">Παράλ. δημιουργ. MD5 κατά την δημ. αντιγρ. ασφ.</string>
+        <string name="skip_dalvik_cache_from_backup">Παράλ. dalvik-cache κατά την δημ. αντιγρ. ασφ.</string>
         <string name="disable_backup_space_chk">Απενεργοποίηση Ελέγχου Ελεύθερου Χώρου</string>
         <string name="refresh_sizes_btn">Ανανέωση Μεγεθών</string>
         <string name="swipe_backup">Σύρετε για δημιουργ. Αντιγρ. Ασφαλ.</string>

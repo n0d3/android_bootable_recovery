@@ -1204,6 +1204,8 @@ int TWPartitionManager::Factory_Reset(void) {
 int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 	struct stat st;
 	vector <string> dir;
+	string mountpoint;
+	TWPartition* part;
 
 	if (!Mount_By_Path("/data", true))
 		return false;
@@ -1219,6 +1221,9 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 		if (stat(dir.at(i).c_str(), &st) == 0) {
 			TWFunc::removeDir(dir.at(i), false);
 			gui_msg(Msg("cleaned=Cleaned: {1}...")(dir.at(i)));
+			mountpoint = dir.at(i).substr(1, dir.at(i).size() - 13);
+			part = Find_Partition_By_Path(mountpoint);
+			part->Dalvik_Cache_Size = 0;
 		}
 	}
 	TWPartition* sdext = Find_Partition_By_Path("/sd-ext");
@@ -1228,6 +1233,7 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
 		{
 			TWFunc::removeDir("/sd-ext/dalvik-cache", false);
 			gui_msg(Msg("cleaned=Cleaned: {1}...")("/sd-ext/dalvik-cache"));
+			sdext->Dalvik_Cache_Size = 0;
 		}
 	}
 	gui_msg("dalvik_done=-- Dalvik Cache Directories Wipe Complete!");

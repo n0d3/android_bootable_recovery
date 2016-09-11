@@ -61,6 +61,7 @@ twrpTar::twrpTar(void) {
 	use_compression = 0;
 	split_archives = 0;
 	has_data_media = 0;
+	skip_dalvik = 0;
 	pigz_pid = 0;
 	oaes_pid = 0;
 	Total_Backup_Size = 0;
@@ -170,6 +171,8 @@ int twrpTar::createTarFork(pid_t *tar_fork_pid) {
 					continue;
 				if (de->d_type == DT_DIR) {
 					item_len = strlen(de->d_name);
+					if (skip_dalvik && (strncmp(de->d_name, "dalvik-cache", 12) == 0 || strncmp(de->d_name, "dc", 2) == 0)) 
+						continue;
 					if (userdata_encryption && ((item_len >= 3 && strncmp(de->d_name, "app", 3) == 0) || (item_len >= 6 && strncmp(de->d_name, "dalvik", 6) == 0))) {
 						ret = Generate_TarList(FileName, &RegularList, &target_size, &regular_thread_id);
 						if (ret < 0) {
@@ -218,6 +221,8 @@ int twrpTar::createTarFork(pid_t *tar_fork_pid) {
 					continue;
 				if (de->d_type == DT_DIR) {
 					item_len = strlen(de->d_name);
+					if (skip_dalvik && (strncmp(de->d_name, "dalvik-cache", 12) == 0 || strncmp(de->d_name, "dc", 2) == 0)) 
+						continue;
 					if (userdata_encryption && ((item_len >= 3 && strncmp(de->d_name, "app", 3) == 0) || (item_len >= 6 && strncmp(de->d_name, "dalvik", 6) == 0))) {
 						// Do nothing, we added these to RegularList earlier
 					} else {
@@ -656,6 +661,8 @@ int twrpTar::Generate_TarList(string Path, std::vector<TarListStruct> *TarList, 
 		FileName = Path + "/" + de->d_name;
 
 		if (de->d_type == DT_BLK || de->d_type == DT_CHR || du.check_skip_dirs(FileName))
+			continue;
+		if (skip_dalvik && (strncmp(de->d_name, "dalvik-cache", 12) == 0 || strncmp(de->d_name, "dc", 2) == 0)) 
 			continue;
 		TarItem.fn = FileName;
 		TarItem.thread_id = *thread_id;

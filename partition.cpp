@@ -199,6 +199,7 @@ TWPartition::TWPartition() {
 	Used = 0;
 	Free = 0;
 	Backup_Size = 0;
+	Dalvik_Cache_Size = 0;
 	Can_Be_Encrypted = false;
 	Is_Encrypted = false;
 	Is_Decrypted = false;
@@ -2150,6 +2151,7 @@ bool TWPartition::Backup_Tar(PartitionSettings *part_settings, pid_t *tar_fork_p
 	gui_msg(Msg("backing_up=Backing up {1}...")(Backup_Display_Name));
 
 	DataManager::GetValue(TW_USE_COMPRESSION_VAR, tar.use_compression);
+	DataManager::GetValue(TW_SKIP_DALVIK, tar.skip_dalvik);
 
 #ifndef TW_EXCLUDE_ENCRYPTED_BACKUPS
 	if (Can_Encrypt_Backup) {
@@ -2469,6 +2471,7 @@ bool TWPartition::Restore_Image(PartitionSettings *part_settings) {
 
 bool TWPartition::Update_Size(bool Display_Error) {
 	bool ret = false, Was_Already_Mounted = false;
+	int skip_dalvik = 0;
 
 	if (!Can_Be_Mounted && !Is_Encrypted)
 		return false;
@@ -2479,6 +2482,9 @@ bool TWPartition::Update_Size(bool Display_Error) {
 			return true;
 	} else if (!Mount(Display_Error))
 		return false;
+
+	if (Mount_Point == "/data" || Mount_Point == "/sd-ext" || Mount_Point == "/cache")
+		CheckFor_Dalvik_Cache();
 
 	ret = Get_Size_Via_statfs(Display_Error);
 	if (!ret || Size == 0) {
@@ -2491,7 +2497,6 @@ bool TWPartition::Update_Size(bool Display_Error) {
 
 	if (Has_Data_Media) {
 		if (Mount(Display_Error)) {
-			unsigned long long data_media_used, actual_data;
 			Used = du.Get_Folder_Size(Mount_Point);
 			Backup_Size = Used;
 			int bak = (int)(Used / 1048576LLU);
@@ -2511,6 +2516,11 @@ bool TWPartition::Update_Size(bool Display_Error) {
 			return false;
 		}
 	}
+
+	DataManager::GetValue(TW_SKIP_DALVIK, skip_dalvik);
+	if (Backup_Size > 0 && skip_dalvik)
+		Backup_Size -= Dalvik_Cache_Size;
+
 	if (!Was_Already_Mounted)
 		UnMount(false);
 	return true;
@@ -2883,3 +2893,12 @@ void TWPartition::Revert_Adopted() {
 	LOGINFO("Revert_Adopted: no crypto support\n");
 #endif
 }
+
+void TWPartition::CheckFor_Dalvik_Cache(void) {
+	Dalvik_Cache_Size = 0;
+	if (TWFunc::Path_Exists(Mount_Point + "/dalvik-cache"))
+		Dalvik_Cache_Size += du.Get_Folder_Size(Mount_Point + "/dalvik-cache");
+	if (TWFunc::Path_Exists(Mount_Point + "/dc"))
+		Dalvik_Cache_Size += du.Get_Folder_Size(Mount_Point + "/dc");
+}
+

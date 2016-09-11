@@ -1699,6 +1699,12 @@
 				<data variable="tw_disable_free_space"/>
 			</checkbox>
 
+			<checkbox>
+				<placement x="%indent%" y="%row8_y%"/>
+				<text>{@skip_dalvik_cache_from_backup=Exclude dalvik-cache from backup}</text>
+				<data variable="tw_skip_dalvik"/>
+			</checkbox>
+
 			<action>
 				<touch key="home"/>
 				<action function="page">main</action>

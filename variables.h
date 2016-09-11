@@ -135,6 +135,7 @@
 #define TW_CRYPTO_PASSWORD          "tw_crypto_password"
 #define TW_SDEXT_DISABLE_EXT4       "tw_sdext_disable_ext4"
 #define TW_MILITARY_TIME            "tw_military_time"
+#define TW_SKIP_DALVIK		    "tw_skip_dalvik"
 
 // Also used:
 //   tw_boot_is_mountable
