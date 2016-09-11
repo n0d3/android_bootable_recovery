@@ -1,10 +1,10 @@
-.TH PIGZ 1 local
+.TH PIGZ 1 "January 24, 2015"
 .SH NAME
 pigz, unpigz \- compress or expand files
 .SH SYNOPSIS
 .ll +8
 .B pigz
-.RB [ " \-cdfhikKlLnNqrRtTz0..9 " ]
+.RB [ " \-cdfhikKlLnNqrRtTz0..9,11 " ]
 [
 .B -b
 .I blocksize
@@ -113,7 +113,12 @@ and
 or
 .B \-\-best
 indicates the slowest compression method (best compression).
-Level 0 is no compression.
+.B -0
+is no compression.
+.B \-11
+gives a few percent better compression at a severe cost in execution time.
+The default is
+.B \-6.
 .TP
 .B -b --blocksize mmm
 Set compression block size to mmmK (default 128KiB).
@@ -185,9 +190,23 @@ Compress to zlib (.zz) instead of gzip format.
 .TP
 .B --
 All arguments after "--" are treated as file names (for names that start with "-")
+.TP
+These options are unique to the -11 compression level:
+.TP
+.B -F  --first
+Do iterations first, before block split (default is last).
+.TP
+.B -I, --iterations n
+Number of iterations for optimization (default 15).
+.TP
+.B -M, --maxsplits n
+Maximum number of split blocks (default 15).
+.TP
+.B -O  --oneblock
+Do not split into smaller blocks (default is block splitting).
 .SH "COPYRIGHT NOTICE"
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the author be held liable for any damages
 arising from the use of this software.
 .PP
-Copyright (C) 2007, 2008, 2009, 2010, 2011, 2012 Mark Adler <madler@alumni.caltech.edu>
+Copyright (C) 2007-2015 Mark Adler <madler@alumni.caltech.edu>

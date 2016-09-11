@@ -6,11 +6,28 @@ LOCAL_MODULE := pigz
 LOCAL_MODULE_TAGS := eng optional
 LOCAL_MODULE_CLASS := RECOVERY_EXECUTABLES
 LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
-LOCAL_CFLAGS :=
-LOCAL_SRC_FILES = pigz.c yarn.c
-LOCAL_C_INCLUDES += $(LOCAL_PATH) \
-					external/zlib
-LOCAL_SHARED_LIBRARIES += libz libc
+LOCAL_CFLAGS := 
+LOCAL_SRC_FILES := \
+	pigz.c \
+	yarn.c \
+	try.c \
+	zopfli/src/zopfli/deflate.c \
+	zopfli/src/zopfli/blocksplitter.c \
+	zopfli/src/zopfli/tree.c \
+	zopfli/src/zopfli/lz77.c \
+	zopfli/src/zopfli/cache.c \
+	zopfli/src/zopfli/hash.c \
+	zopfli/src/zopfli/util.c \
+	zopfli/src/zopfli/squeeze.c \
+	zopfli/src/zopfli/katajainen.c
+
+LOCAL_C_INCLUDES := \
+	$(LOCAL_PATH) \
+	external/zlib
+
+LOCAL_SHARED_LIBRARIES := \
+	libc \
+	libz
 
 include $(BUILD_EXECUTABLE)
 

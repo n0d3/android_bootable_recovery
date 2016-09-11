@@ -1,30 +1,56 @@
 CC=cc
 CFLAGS=-O3 -Wall -Wextra
 
-pigz: pigz.o yarn.o
-	$(CC) -o pigz pigz.o yarn.o -lpthread -lz
+ZOPFLI=zopfli/src/zopfli/
+# use gcc and gmake on Solaris
+
+pigz: pigz.o yarn.o try.o ${ZOPFLI}deflate.o ${ZOPFLI}blocksplitter.o ${ZOPFLI}tree.o ${ZOPFLI}lz77.o ${ZOPFLI}cache.o ${ZOPFLI}hash.o ${ZOPFLI}util.o ${ZOPFLI}squeeze.o ${ZOPFLI}katajainen.o
+	$(CC) -o pigz $^ -lpthread -lm
 	ln -f pigz unpigz
 
-pigz.o: pigz.c yarn.h
+pigz.o: pigz.c yarn.h try.h ${ZOPFLI}deflate.h ${ZOPFLI}util.h
 
 yarn.o: yarn.c yarn.h
 
+try.o: try.c try.h
+
+${ZOPFLI}deflate.o: ${ZOPFLI}deflate.c ${ZOPFLI}deflate.h ${ZOPFLI}blocksplitter.h ${ZOPFLI}lz77.h ${ZOPFLI}squeeze.h ${ZOPFLI}tree.h ${ZOPFLI}zopfli.h ${ZOPFLI}cache.h ${ZOPFLI}hash.h ${ZOPFLI}util.h
+
+${ZOPFLI}blocksplitter.o: ${ZOPFLI}blocksplitter.c ${ZOPFLI}blocksplitter.h ${ZOPFLI}deflate.h ${ZOPFLI}lz77.h ${ZOPFLI}squeeze.h ${ZOPFLI}tree.h ${ZOPFLI}util.h ${ZOPFLI}zopfli.h ${ZOPFLI}cache.h ${ZOPFLI}hash.h
+
+${ZOPFLI}tree.o: ${ZOPFLI}tree.c ${ZOPFLI}tree.h ${ZOPFLI}katajainen.h ${ZOPFLI}util.h
+
+${ZOPFLI}lz77.o: ${ZOPFLI}lz77.h ${ZOPFLI}util.h ${ZOPFLI}cache.h ${ZOPFLI}hash.h ${ZOPFLI}zopfli.h
+
+${ZOPFLI}cache.o: ${ZOPFLI}cache.c ${ZOPFLI}cache.h ${ZOPFLI}util.h
+
+${ZOPFLI}hash.o: ${ZOPFLI}hash.c ${ZOPFLI}hash.h ${ZOPFLI}util.h
+
+${ZOPFLI}util.o: ${ZOPFLI}util.c ${ZOPFLI}util.h
+
+${ZOPFLI}squeeze.o: ${ZOPFLI}squeeze.c ${ZOPFLI}squeeze.h ${ZOPFLI}blocksplitter.h ${ZOPFLI}deflate.h ${ZOPFLI}tree.h ${ZOPFLI}util.h ${ZOPFLI}zopfli.h ${ZOPFLI}lz77.h ${ZOPFLI}cache.h ${ZOPFLI}hash.h
+
+${ZOPFLI}katajainen.o: ${ZOPFLI}katajainen.c ${ZOPFLI}katajainen.h
+
 dev: pigz pigzt pigzn
 
-pigzt: pigzt.o yarnt.o
-	$(CC) -o pigzt pigzt.o yarnt.o -lpthread -lz
+pigzt: pigzt.o yarnt.o try.o ${ZOPFLI}deflate.o ${ZOPFLI}blocksplitter.o ${ZOPFLI}tree.o ${ZOPFLI}lz77.o ${ZOPFLI}cache.o ${ZOPFLI}hash.o ${ZOPFLI}util.o ${ZOPFLI}squeeze.o ${ZOPFLI}katajainen.o
+	$(CC) -o pigzt $^ -lpthread -lm
 
-pigzt.o: pigz.c yarn.h
+pigzt.o: pigz.c yarn.h try.h
 	$(CC) -Wall -O3 -DDEBUG -g -c -o pigzt.o pigz.c
 
 yarnt.o: yarn.c yarn.h
 	$(CC) -Wall -O3 -DDEBUG -g -c -o yarnt.o yarn.c
 
-pigzn: pigzn.o
-	$(CC) -o pigzn pigzn.o -lz
+pigzn: pigzn.o tryn.o ${ZOPFLI}deflate.o ${ZOPFLI}blocksplitter.o ${ZOPFLI}tree.o ${ZOPFLI}lz77.o ${ZOPFLI}cache.o ${ZOPFLI}hash.o ${ZOPFLI}util.o ${ZOPFLI}squeeze.o ${ZOPFLI}katajainen.o
+	$(CC) -o pigzn $^ -lm
 
-pigzn.o: pigz.c
+pigzn.o: pigz.c try.h
 	$(CC) -Wall -O3 -DDEBUG -DNOTHREAD -g -c -o pigzn.o pigz.c
+
+tryn.o: try.c try.h
+	$(CC) -Wall -O3 -DDEBUG -DNOTHREAD -g -c -o tryn.o try.c
 
 test: pigz
 	./pigz -kf pigz.c ; ./pigz -t pigz.c.gz
@@ -39,7 +65,7 @@ test: pigz
 	(printf "w" | gzip ; printf "x") | ./pigz -cdf | wc -c | test `cat` -eq 2
 	(printf "w" | gzip ; printf "xy") | ./pigz -cdf | wc -c | test `cat` -eq 3
 	(printf "w" | gzip ; printf "xyz") | ./pigz -cdf | wc -c | test `cat` -eq 4
-	-@if test "`whereis compress | grep /`" != ""; then \
+	-@if test "`which compress | grep /`" != ""; then \
 	  echo 'compress -f < pigz.c | ./unpigz | cmp - pigz.c' ;\
 	  compress -f < pigz.c | ./unpigz | cmp - pigz.c ;\
 	fi
@@ -55,4 +81,4 @@ pigz.pdf: pigz.1
 	groff -mandoc -f H -T ps pigz.1 | ps2pdf - pigz.pdf
 
 clean:
-	@rm -f *.o pigz unpigz pigzn pigzt pigz.c.gz pigz.c.zz pigz.c.zip
+	@rm -f *.o ${ZOPFLI}*.o pigz unpigz pigzn pigzt pigz.c.gz pigz.c.zz pigz.c.zip

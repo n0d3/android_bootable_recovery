@@ -1,6 +1,6 @@
 /* yarn.c -- generic thread operations implemented using pthread functions
- * Copyright (C) 2008, 2012 Mark Adler
- * Version 1.3  13 Jan 2012  Mark Adler
+ * Copyright (C) 2008, 2011, 2012, 2015 Mark Adler
+ * Version 1.4  19 Jan 2015  Mark Adler
  * For conditions of distribution and use, see copyright notice in yarn.h
  */
 
@@ -17,6 +17,8 @@
    1.3    13 Jan 2012  Add large file #define for consistency with pigz.c
                        Update thread portability #defines per IEEE 1003.1-2008
                        Fix documentation in yarn.h for yarn_prefix
+   1.4    19 Jan 2015  Allow yarn_abort() to avoid error message to stderr
+                       Accept and do nothing for NULL argument to free_lock()
  */
 
 /* for thread portability */
@@ -31,7 +33,6 @@
 #include <stdio.h>      /* fprintf(), stderr */
 #include <stdlib.h>     /* exit(), malloc(), free(), NULL */
 #include <pthread.h>    /* pthread_t, pthread_create(), pthread_join(), */
-#include <signal.h>     /* sigaction, SIGUSR1 */
     /* pthread_attr_t, pthread_attr_init(), pthread_attr_destroy(),
        PTHREAD_CREATE_JOINABLE, pthread_attr_setdetachstate(),
        pthread_self(), pthread_equal(),
@@ -40,7 +41,7 @@
        pthread_cond_t, PTHREAD_COND_INITIALIZER, pthread_cond_init(),
        pthread_cond_broadcast(), pthread_cond_wait(), pthread_cond_destroy() */
 #include <errno.h>      /* ENOMEM, EAGAIN, EINVAL */
-#include <string.h>     /* memset */
+#include <signal.h>
 
 /* interface definition */
 #include "yarn.h"
@@ -52,19 +53,14 @@
 char *yarn_prefix = "yarn";
 void (*yarn_abort)(int) = NULL;
 
-void thread_exit_handler(int sig)
-{ 
-    printf("this signal is %d \n", sig);
-    pthread_exit(0);
-}
 
 /* immediately exit -- use for errors that shouldn't ever happen */
 local void fail(int err)
 {
-    fprintf(stderr, "%s: %s (%d) -- aborting\n", yarn_prefix,
-            err == ENOMEM ? "out of memory" : "internal pthread error", err);
     if (yarn_abort != NULL)
         yarn_abort(err);
+    fprintf(stderr, "%s: %s (%d) -- aborting\n", yarn_prefix,
+            err == ENOMEM ? "out of memory" : "internal pthread error", err);
     exit(err == ENOMEM || err == EAGAIN ? err : EINVAL);
 }
 
@@ -179,6 +175,9 @@ long peek_lock(lock *bolt)
 void free_lock(lock *bolt)
 {
     int ret;
+
+    if (bolt == NULL)
+        return;
     if ((ret = pthread_cond_destroy(&(bolt->cond))) ||
         (ret = pthread_mutex_destroy(&(bolt->mutex))))
         fail(ret);
@@ -270,13 +269,6 @@ thread *launch(void (*probe)(void *), void *payload)
     thread *th;
     struct capsule *capsule;
     pthread_attr_t attr;
-    struct sigaction actions;
-
-    memset(&actions, 0, sizeof(actions)); 
-    sigemptyset(&actions.sa_mask);
-    actions.sa_flags = 0; 
-    actions.sa_handler = thread_exit_handler;
-    ret = sigaction(SIGUSR1,&actions,NULL);
 
     /* construct the requested call and argument for the ignition() routine
        (allocated instead of automatic so that we're sure this will still be
@@ -383,7 +375,11 @@ void destruct(thread *off_course)
 {
     int ret;
 
+#if defined(__ANDROID__)
     if ((ret = pthread_kill(off_course->id, SIGUSR1)) != 0)
+#else
+    if ((ret = pthread_cancel(off_course->id)) != 0)
+#endif
         fail(ret);
     join(off_course);
 }
